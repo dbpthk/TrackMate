@@ -4,10 +4,7 @@ import {
   createExercise,
   getWorkoutById,
 } from "@/lib/db/queries";
-import { sanitizeInput } from "@/utils/sanitize";
-
-const toInt = (n: unknown): number | undefined =>
-  n === null || n === undefined ? undefined : Math.max(0, Math.floor(Number(n)));
+import { sanitizeInput, sanitizeInt } from "@/utils/sanitize";
 
 export default async function handler(
   req: NextApiRequest,
@@ -39,10 +36,10 @@ export default async function handler(
     const exercise = await createExercise({
       workoutId: wid,
       name: sanitizeInput(name, 255),
-      sets: toInt(sets),
-      reps: toInt(reps),
-      weight: toInt(weight),
-      duration: toInt(duration),
+      sets: sanitizeInt(sets),
+      reps: sanitizeInt(reps),
+      weight: sanitizeInt(weight),
+      duration: sanitizeInt(duration),
     });
     return res.status(201).json(exercise);
   } catch (err) {

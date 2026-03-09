@@ -1,5 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { getToken } from "next-auth/jwt";
+import { sanitizeInput, sanitizeEmail } from "@/utils/sanitize";
 import {
   getBuddiesWithUsers,
   addBuddy,
@@ -26,7 +27,8 @@ export default async function handler(
     const { buddyId, email } = req.body ?? {};
     let targetId = buddyId != null ? Number(buddyId) : null;
     if (!targetId && email) {
-      const user = await getUserByEmail(String(email).trim());
+      const em = sanitizeEmail(email) || sanitizeInput(String(email), 255).toLowerCase();
+      const user = await getUserByEmail(em);
       targetId = user?.id ?? null;
     }
     if (!targetId || targetId === userId) {

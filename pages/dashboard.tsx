@@ -1,8 +1,13 @@
 import { getSession } from "next-auth/react";
 import type { GetServerSideProps } from "next";
+import dynamic from "next/dynamic";
 import Head from "next/head";
 import Link from "next/link";
-import { AnalyticsCharts } from "@/components/AnalyticsCharts";
+
+const AnalyticsCharts = dynamic(
+  () => import("@/components/AnalyticsCharts").then((m) => ({ default: m.AnalyticsCharts })),
+  { ssr: false, loading: () => <p className="text-muted-foreground">Loading charts…</p> }
+);
 import {
   getVolumeByDate,
   getVolumeByWeek,

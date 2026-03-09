@@ -1,5 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { getToken } from "next-auth/jwt";
+import { sanitizeInput, sanitizeEmail } from "@/utils/sanitize";
 import { getUserByEmail, getBuddiesByUserId } from "@/lib/db/queries";
 
 export default async function handler(
@@ -17,7 +18,7 @@ export default async function handler(
     return res.status(405).json({ error: "Method not allowed" });
   }
 
-  const email = String(req.query.email ?? "").trim();
+  const email = sanitizeEmail(req.query.email) || sanitizeInput(String(req.query.email ?? ""));
   if (!email) {
     return res.status(400).json({ error: "Email required" });
   }

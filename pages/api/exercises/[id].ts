@@ -6,10 +6,7 @@ import {
   deleteExercise,
   getWorkoutById,
 } from "@/lib/db/queries";
-import { sanitizeInput } from "@/utils/sanitize";
-
-const toInt = (n: unknown): number | undefined =>
-  n === null || n === undefined ? undefined : Math.max(0, Math.floor(Number(n)));
+import { sanitizeInput, sanitizeInt } from "@/utils/sanitize";
 
 export default async function handler(
   req: NextApiRequest,
@@ -39,10 +36,10 @@ export default async function handler(
     const { name, sets, reps, weight, duration } = req.body ?? {};
     const updates: Parameters<typeof updateExercise>[1] = {};
     if (name !== undefined) updates.name = sanitizeInput(name, 255);
-    if (sets !== undefined) updates.sets = toInt(sets);
-    if (reps !== undefined) updates.reps = toInt(reps);
-    if (weight !== undefined) updates.weight = toInt(weight);
-    if (duration !== undefined) updates.duration = toInt(duration);
+    if (sets !== undefined) updates.sets = sanitizeInt(sets);
+    if (reps !== undefined) updates.reps = sanitizeInt(reps);
+    if (weight !== undefined) updates.weight = sanitizeInt(weight);
+    if (duration !== undefined) updates.duration = sanitizeInt(duration);
     const updated = await updateExercise(id, updates);
     return res.status(200).json(updated);
   }

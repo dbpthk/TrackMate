@@ -6,7 +6,7 @@ import {
   deleteWorkout,
   getExercisesByWorkoutId,
 } from "@/lib/db/queries";
-import { sanitizeInput } from "@/utils/sanitize";
+import { sanitizeInput, sanitizeDate } from "@/utils/sanitize";
 
 export default async function handler(
   req: NextApiRequest,
@@ -35,7 +35,10 @@ export default async function handler(
   if (req.method === "PATCH") {
     const { date, type } = req.body ?? {};
     const updates: { date?: string; type?: string } = {};
-    if (date !== undefined) updates.date = String(date).slice(0, 10);
+    if (date !== undefined) {
+      const d = sanitizeDate(date);
+      if (d) updates.date = d;
+    }
     if (type !== undefined) updates.type = sanitizeInput(type, 100);
     if (Object.keys(updates).length === 0) {
       const exercises = await getExercisesByWorkoutId(id);

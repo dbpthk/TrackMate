@@ -1,3 +1,7 @@
+/**
+ * All queries use Drizzle's parameterized API (eq, and, insert, etc.).
+ * No raw SQL string interpolation - safe from injection.
+ */
 import { eq, and, desc, inArray } from "drizzle-orm";
 import { db } from "../db";
 import {

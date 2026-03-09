@@ -2,7 +2,7 @@ import type { NextApiRequest, NextApiResponse } from "next";
 import { getToken } from "next-auth/jwt";
 import { updateUser } from "@/lib/db/queries";
 import type { UpdateUserInput } from "@/lib/db/queries";
-import { sanitizeInput } from "@/utils/sanitize";
+import { sanitizeInput, sanitizeStats } from "@/utils/sanitize";
 
 export default async function handler(
   req: NextApiRequest,
@@ -24,17 +24,15 @@ export default async function handler(
 
     let statsObj: Record<string, unknown> | null | undefined = undefined;
     if (stats !== undefined) {
-      if (typeof stats === "string" && stats.trim() === "") {
-        statsObj = null;
-      } else if (typeof stats === "string") {
-        try {
-          statsObj = JSON.parse(stats) as Record<string, unknown>;
-        } catch {
-          return res.status(400).json({ error: "Invalid JSON in stats" });
-        }
-      } else if (typeof stats === "object" && stats !== null) {
-        statsObj = stats as Record<string, unknown>;
+      const sanitized = sanitizeStats(stats);
+      if (
+        typeof stats === "string" &&
+        stats.trim() !== "" &&
+        sanitized === null
+      ) {
+        return res.status(400).json({ error: "Invalid JSON in stats" });
       }
+      statsObj = sanitized;
     }
 
     const updates: UpdateUserInput = {};
