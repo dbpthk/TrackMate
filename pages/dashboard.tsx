@@ -3,6 +3,7 @@ import type { GetServerSideProps } from "next";
 import dynamic from "next/dynamic";
 import Head from "next/head";
 import Link from "next/link";
+import { useRouter } from "next/router";
 import {
   getTotalWorkoutsCount,
   getWorkoutStreak,
@@ -134,6 +135,14 @@ export default function DashboardPage({
   volumeByDate,
   volumeByWeek,
 }: DashboardProps) {
+  const router = useRouter();
+
+  const handleDeleteWorkout = async (id: number) => {
+    if (!confirm("Delete this workout? This cannot be undone.")) return;
+    const res = await fetch(`/api/workouts/${id}`, { method: "DELETE" });
+    if (res.ok) router.replace(router.asPath);
+  };
+
   return (
     <>
       <Head>
@@ -277,13 +286,23 @@ export default function DashboardPage({
                     key={w.id}
                     className="rounded-lg border border-border bg-surface p-4"
                   >
-                    <div className="flex items-center justify-between">
-                      <span className="font-medium text-foreground">
-                        {w.type}
-                      </span>
-                      <span className="text-sm text-muted-foreground">
-                        {formatDate(w.date)}
-                      </span>
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="min-w-0 flex-1">
+                        <span className="font-medium text-foreground">
+                          {w.type}
+                        </span>
+                        <span className="ml-2 text-sm text-muted-foreground">
+                          {formatDate(w.date)}
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteWorkout(w.id)}
+                        className="shrink-0 rounded px-2 py-1 text-sm text-muted-foreground hover:bg-red-500/10 hover:text-red-600 dark:hover:text-red-400 focus:outline-none focus:ring-2 focus:ring-primary"
+                        aria-label={`Delete workout from ${formatDate(w.date)}`}
+                      >
+                        Delete
+                      </button>
                     </div>
                     {w.exercises && w.exercises.length > 0 && (
                       <ul className="mt-2 space-y-1 text-sm text-muted-foreground">
