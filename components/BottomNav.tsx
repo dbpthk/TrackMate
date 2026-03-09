@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/router";
+import { usePathname } from "next/navigation";
 
 const navItems = [
   { href: "/", label: "Home", icon: HomeIcon },
@@ -87,8 +87,8 @@ function ProfileIcon({ active }: { active?: boolean }) {
 }
 
 export function BottomNav() {
-  const router = useRouter();
-  const currentPath = router.pathname;
+  const pathname = usePathname();
+  const currentPath = pathname ?? "/";
 
   const isActive = (href: string) => {
     if (href === "/") return currentPath === "/";

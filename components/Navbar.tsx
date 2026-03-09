@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
-import { useRouter } from "next/router";
+import { usePathname } from "next/navigation";
 import { ThemeToggle } from "./ThemeToggle";
 
 const navLinksSignedIn = [
@@ -27,12 +27,12 @@ const navLinkActiveClass = "bg-surface-muted text-primary";
 
 export function Navbar() {
   const { data: session, status } = useSession();
-  const router = useRouter();
+  const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
 
   const isSignedIn = status === "authenticated" && !!session?.user;
   const links = isSignedIn ? navLinksSignedIn : navLinksSignedOut;
-  const currentPath = router.pathname;
+  const currentPath = pathname ?? "/";
 
   const isActive = (href: string) => {
     if (href === "/") return currentPath === "/";

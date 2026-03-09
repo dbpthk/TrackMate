@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import Head from "next/head";
 
 const FEATURES = [
   {
@@ -32,26 +31,7 @@ const FEATURES = [
 
 export function LandingPage() {
   return (
-    <>
-      <Head>
-        <title>TrackMate — Your Workout Companion</title>
-        <meta
-          name="description"
-          content="Track workouts, build splits, hit PRs, and stay consistent. The simple fitness tracker that helps you get stronger."
-        />
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link
-          rel="preconnect"
-          href="https://fonts.gstatic.com"
-          crossOrigin="anonymous"
-        />
-        <link
-          href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Source+Sans+3:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap"
-          rel="stylesheet"
-        />
-      </Head>
-
-      <div
+    <div
         className="min-h-[calc(100vh-3.5rem)] overflow-hidden"
         style={{
           fontFamily: "'Source Sans 3', system-ui, sans-serif",
@@ -168,6 +148,5 @@ export function LandingPage() {
           </div>
         </section>
       </div>
-    </>
   );
 }
