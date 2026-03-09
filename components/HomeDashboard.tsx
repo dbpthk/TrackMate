@@ -180,17 +180,23 @@ export function HomeDashboard({
                       </p>
                     )}
                     {todayWorkout ? (
-                      <p className="flex items-center gap-2 text-sm font-medium text-green-600 dark:text-green-400">
-                        <span aria-hidden>✓</span>
-                        Completed — view in{" "}
-                        <Link
-                          href="/dashboard"
-                          className="text-primary underline underline-offset-2"
-                        >
-                          Stats
-                        </Link>{" "}
-                        to review or delete
-                      </p>
+                      <label className="flex cursor-pointer items-center gap-3">
+                        <input
+                          type="checkbox"
+                          checked={true}
+                          onChange={async () => {
+                            await fetch(`/api/workouts/${todayWorkout.id}`, {
+                              method: "DELETE",
+                            });
+                            await fetchWorkouts();
+                          }}
+                          className="h-5 w-5 rounded border-border text-primary focus:ring-primary"
+                          aria-label="Undo — mark as not completed"
+                        />
+                        <span className="text-sm font-medium text-green-600 dark:text-green-400">
+                          ✓ Completed — uncheck to undo for today
+                        </span>
+                      </label>
                     ) : (
                       <label className="flex cursor-pointer items-center gap-3">
                         <input
