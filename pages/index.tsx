@@ -40,6 +40,12 @@ export default function Home() {
         >
           Dashboard
         </Link>
+        <Link
+          href="/buddies"
+          className="text-primary underline focus:outline-none focus:ring-2 focus:ring-primary"
+        >
+          Buddies
+        </Link>
       </nav>
     </main>
   );

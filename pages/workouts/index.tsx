@@ -149,6 +149,9 @@ export default function WorkoutsPage() {
               <Link href="/dashboard" className="text-sm text-primary underline">
                 Dashboard
               </Link>
+              <Link href="/buddies" className="text-sm text-primary underline">
+                Buddies
+              </Link>
               <Button onClick={openAdd} aria-label="Add workout">
                 Add workout
               </Button>

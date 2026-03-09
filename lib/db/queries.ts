@@ -1,4 +1,4 @@
-import { eq, and, desc } from "drizzle-orm";
+import { eq, and, desc, inArray } from "drizzle-orm";
 import { db } from "../db";
 import {
   users,
@@ -293,6 +293,71 @@ export async function removeBuddy(
   await db
     .delete(buddies)
     .where(and(eq(buddies.userId, userId), eq(buddies.buddyId, buddyId)));
+}
+
+export async function getBuddiesWithUsers(
+  userId: number
+): Promise<{ buddyId: number; name: string; email: string }[]> {
+  const rows = await db
+    .select({
+      buddyId: buddies.buddyId,
+      name: users.name,
+      email: users.email,
+    })
+    .from(buddies)
+    .innerJoin(users, eq(buddies.buddyId, users.id))
+    .where(eq(buddies.userId, userId));
+  return rows;
+}
+
+export async function getBuddyWorkouts(
+  userId: number,
+  limit = 50
+): Promise<
+  (Workout & {
+    exercises: Exercise[];
+    buddyName: string;
+  })[]
+> {
+  const myBuddies = await getBuddiesByUserId(userId);
+  const buddyIds = myBuddies.map((b) => b.buddyId);
+  if (buddyIds.length === 0) return [];
+
+  const userWorkouts = await db
+    .select()
+    .from(workouts)
+    .where(inArray(workouts.userId, buddyIds))
+    .orderBy(desc(workouts.date))
+    .limit(limit);
+
+  const result: (Workout & { exercises: Exercise[]; buddyName: string })[] = [];
+  for (const w of userWorkouts) {
+    const buddy = await getUserById(w.userId);
+    const exs = await getExercisesByWorkoutId(w.id);
+    result.push({
+      ...w,
+      exercises: exs,
+      buddyName: buddy?.name ?? "Unknown",
+    });
+  }
+  return result;
+}
+
+export async function getBuddyStreak(buddyId: number): Promise<number> {
+  const workoutDates = await db
+    .select({ date: workouts.date })
+    .from(workouts)
+    .where(eq(workouts.userId, buddyId))
+    .orderBy(desc(workouts.date));
+  const dates = new Set(workoutDates.map((r) => r.date));
+  let streak = 0;
+  const today = new Date().toISOString().slice(0, 10);
+  let d = new Date(today + "T12:00:00");
+  while (dates.has(d.toISOString().slice(0, 10))) {
+    streak++;
+    d.setDate(d.getDate() - 1);
+  }
+  return streak;
 }
 
 // --- Analytics ---

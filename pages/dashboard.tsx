@@ -74,6 +74,12 @@ export default function DashboardPage({
               >
                 Profile
               </Link>
+              <Link
+                href="/buddies"
+                className="text-sm text-primary underline focus:outline-none focus:ring-2 focus:ring-primary"
+              >
+                Buddies
+              </Link>
             </nav>
           </div>
 
