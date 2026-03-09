@@ -1,40 +1,150 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/pages/api-reference/create-next-app).
+# TrackMate
 
-## Getting Started
+A free, simple fitness tracker to help you build workout splits, log progress, and stay consistent. Built for you and your friends.
 
-First, run the development server:
+## Project Description
+
+TrackMate is a full-stack web application that lets you create custom workout splits, log sets and reps, track personal records, and share progress with workout buddies. No subscriptions, no ads—just the tools you need to get stronger.
+
+## Why I Built This
+
+I was having difficulty tracking my workouts at the gym and couldn't find any suitable app that was free to use. Most options were either too complex, locked behind paywalls, or didn't fit my needs. So I decided to build one for me and my friends—a straightforward tracker that gets out of your way so you can focus on lifting.
+
+## Features
+
+- **Smart Workout Splits** — Choose from 3–6 day splits, customize muscle groups per day, and build your ideal routine
+- **Track Progress** — Log sets, reps, and weights. Watch your strength grow with charts, PRs, and volume stats
+- **Stay Consistent** — Weekly progress, streaks, and today's focus keep you accountable and motivated
+- **Share with Buddies** — Add workout buddies, share personal records, and push each other to new heights
+- **Profile & Goals** — Set experience level, training split, preferred days, and units (metric/imperial)
+- **Stats Dashboard** — Total workouts, streak, volume, muscle distribution, strength progress charts
+- **Dark/Light Theme** — System-aware theme toggle with persistent preference
+- **Responsive Design** — Works on mobile and desktop with bottom nav on small screens
+
+## Tech Stack
+
+| Category  | Technology                |
+| --------- | ------------------------- |
+| Framework | Next.js 16 (App Router)   |
+| Language  | TypeScript                |
+| Styling   | Tailwind CSS 4            |
+| Database  | PostgreSQL                |
+| ORM       | Drizzle ORM               |
+| Auth      | NextAuth.js (Credentials) |
+| State     | Zustand                   |
+| Charts    | Recharts                  |
+
+## Installation & Setup
+
+### Prerequisites
+
+- Node.js 18+
+- PostgreSQL database
+- npm or pnpm
+
+### Steps
+
+1. **Clone the repository**
+
+   ```bash
+   git clone https://github.com/yourusername/trackmate.git
+   cd trackmate
+   ```
+
+2. **Install dependencies**
+
+   ```bash
+   npm install
+   ```
+
+3. **Set up environment variables**
+
+   ```bash
+   cp .env.example .env
+   ```
+
+   Edit `.env` and add:
+
+   ```
+   DATABASE_URL="postgresql://user:password@localhost:5432/trackmate"
+   NEXTAUTH_SECRET="generate-with-openssl-rand-base64-32"
+   NEXTAUTH_URL="http://localhost:3000"
+   ```
+
+   Generate a secret: `openssl rand -base64 32`
+
+4. **Run database migrations**
+
+   ```bash
+   npm run db:migrate:run
+   ```
+
+5. **Seed exercise master data (optional)**
+
+   ```bash
+   npm run db:seed
+   ```
+
+6. **Start the development server**
+   ```bash
+   npm run dev
+   ```
+   Open [http://localhost:3000](http://localhost:3000)
+
+### Build for Production
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm run build
+npm start
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Project Structure
 
-You can start editing the page by modifying `pages/index.tsx`. The page auto-updates as you edit the file.
+```
+trackmate/
+├── app/                    # Next.js App Router
+│   ├── (public)/           # Public pages (privacy, terms, about)
+│   ├── api/                # API route handlers
+│   │   ├── auth/           # NextAuth, signup
+│   │   ├── buddies/        # Follow, requests, feed
+│   │   ├── exercises/      # Exercise CRUD, suggest
+│   │   ├── share/          # Personal records sharing
+│   │   ├── users/          # User search
+│   │   ├── workout-days/   # Muscle groups per day
+│   │   ├── workout-day-exercises/
+│   │   ├── workout-split/
+│   │   └── workouts/       # Workout CRUD
+│   ├── auth/               # Sign in, sign up, error
+│   ├── buddies/
+│   ├── dashboard/
+│   ├── profile/
+│   ├── workout/
+│   ├── layout.tsx
+│   ├── page.tsx
+│   ├── providers.tsx
+│   └── not-found.tsx
+├── components/             # React components
+├── drizzle/                # Schema & migrations
+├── lib/                    # Auth, DB queries, utilities
+├── scripts/                # Migrate, seed scripts
+├── store/                  # Zustand store
+├── styles/                 # Global CSS
+└── utils/                  # Helpers (sanitize, etc.)
+```
 
-[API routes](https://nextjs.org/docs/pages/building-your-application/routing/api-routes) can be accessed on [http://localhost:3000/api/hello](http://localhost:3000/api/hello). This endpoint can be edited in `pages/api/hello.ts`.
+## Future Improvements
 
-The `pages/api` directory is mapped to `/api/*`. Files in this directory are treated as [API routes](https://nextjs.org/docs/pages/building-your-application/routing/api-routes) instead of React pages.
+- [ ] Export workout history (CSV/PDF)
+- [ ] Rest timer between sets
+- [ ] Progressive overload suggestions
+- [ ] PWA support for offline use
+- [ ] Social feed of buddies' workouts (opt-in)
+- [ ] Body weight / measurements tracking
 
-This project uses [`next/font`](https://nextjs.org/docs/pages/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Author
 
-## Learn More
+**Dhruv** — [dpthk2024@gmail.com](mailto:dpthk2024@gmail.com)
 
-To learn more about Next.js, take a look at the following resources:
+---
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn-pages-router) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/pages/building-your-application/deploying) for more details.
+Built with ❤️ for lifters who just want to track and improve.
