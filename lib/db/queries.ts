@@ -176,6 +176,25 @@ export async function getWorkoutById(id: number): Promise<Workout | undefined> {
   return w;
 }
 
+export async function getWorkoutByUserIdDateType(
+  userId: number,
+  date: string,
+  type: string
+): Promise<Workout | undefined> {
+  const [w] = await db
+    .select()
+    .from(workouts)
+    .where(
+      and(
+        eq(workouts.userId, userId),
+        eq(workouts.date, toDate(date)),
+        eq(workouts.type, trim(type, 100))
+      )
+    )
+    .limit(1);
+  return w;
+}
+
 export async function getWorkoutsByUserId(
   userId: number
 ): Promise<Workout[]> {
@@ -203,6 +222,7 @@ export async function getWorkoutsByUserIdInRange(
 export async function getWorkoutsWithExercisesByUserId(
   userId: number
 ): Promise<(Workout & { exercises: Exercise[] })[]> {
+  await deduplicateWorkoutsForUser(userId);
   const userWorkouts = await db
     .select()
     .from(workouts)
@@ -214,6 +234,60 @@ export async function getWorkoutsWithExercisesByUserId(
     result.push({ ...w, exercises: exs });
   }
   return result;
+}
+
+/** Deduplicate workouts: merge exercises from duplicates into one per (userId, date, type), delete extras */
+export async function deduplicateWorkoutsForUser(
+  userId: number
+): Promise<{ merged: number; deleted: number }> {
+  const userWorkouts = await db
+    .select()
+    .from(workouts)
+    .where(eq(workouts.userId, userId))
+    .orderBy(asc(workouts.id));
+
+  const byKey = new Map<string, Workout[]>();
+  const normalizeType = (t: string) => trim(t).replace(/^Day \d+ —\s*/i, "");
+  for (const w of userWorkouts) {
+    const typeNorm = normalizeType(w.type);
+    const key = `${w.date}::${typeNorm || w.type}`;
+    const list = byKey.get(key) ?? [];
+    list.push(w);
+    byKey.set(key, list);
+  }
+
+  let merged = 0;
+  let deleted = 0;
+
+  const hasDuplicates = [...byKey.values()].some((list) => list.length > 1);
+  if (!hasDuplicates) return { merged: 0, deleted: 0 };
+
+  for (const list of byKey.values()) {
+    if (list.length <= 1) continue;
+
+    const sorted = [...list].sort((a, b) => a.id - b.id);
+    const keep = sorted[0];
+    const duplicates = sorted.slice(1);
+
+    for (const dup of duplicates) {
+      const exs = await getExercisesByWorkoutId(dup.id);
+      for (const ex of exs) {
+        await createExercise({
+          workoutId: keep.id,
+          name: ex.name,
+          sets: ex.sets ?? undefined,
+          reps: ex.reps ?? undefined,
+          weight: ex.weight ?? undefined,
+          duration: ex.duration ?? undefined,
+        });
+      }
+      await deleteWorkout(dup.id);
+      deleted++;
+    }
+    merged += duplicates.length;
+  }
+
+  return { merged, deleted };
 }
 
 export type UpdateWorkoutInput = Partial<Omit<CreateWorkoutInput, "userId">>;
@@ -480,6 +554,225 @@ export async function getWorkoutTypeDistribution(
     byType[row.type] = (byType[row.type] ?? 0) + 1;
   }
   return Object.entries(byType).map(([type, count]) => ({ type, count }));
+}
+
+// --- Stats ---
+
+export async function getTotalWorkoutsCount(userId: number): Promise<number> {
+  const list = await getWorkoutsByUserId(userId);
+  return list.length;
+}
+
+export async function getTotalVolume(userId: number): Promise<number> {
+  const byDate = await getVolumeByDate(userId);
+  return byDate.reduce((sum, d) => sum + d.volume, 0);
+}
+
+export async function getWorkoutStreak(userId: number): Promise<number> {
+  const workoutDates = await db
+    .select({ date: workouts.date })
+    .from(workouts)
+    .where(eq(workouts.userId, userId))
+    .orderBy(desc(workouts.date));
+  const dates = new Set(workoutDates.map((r) => r.date));
+  let streak = 0;
+  const today = new Date().toISOString().slice(0, 10);
+  let d = new Date(today + "T12:00:00");
+  while (dates.has(d.toISOString().slice(0, 10))) {
+    streak++;
+    d.setDate(d.getDate() - 1);
+  }
+  return streak;
+}
+
+export type PersonalRecord = {
+  exerciseName: string;
+  weight: number;
+  reps: number | null;
+  date: string;
+};
+
+export async function getPersonalRecords(
+  userId: number,
+  limit = 20
+): Promise<PersonalRecord[]> {
+  const rows = await db
+    .select({
+      name: exercises.name,
+      weight: exercises.weight,
+      reps: exercises.reps,
+      date: workouts.date,
+    })
+    .from(exercises)
+    .innerJoin(workouts, eq(exercises.workoutId, workouts.id))
+    .where(
+      and(eq(workouts.userId, userId), gte(exercises.weight, 1))
+    )
+    .orderBy(desc(workouts.date), desc(exercises.weight));
+
+  const bestByExercise: Record<string, PersonalRecord> = {};
+  for (const r of rows) {
+    const key = r.name.trim().toLowerCase();
+    const w = r.weight ?? 0;
+    const existing = bestByExercise[key];
+    if (!existing || w > existing.weight) {
+      bestByExercise[key] = {
+        exerciseName: r.name,
+        weight: w,
+        reps: r.reps,
+        date: r.date,
+      };
+    }
+  }
+  return Object.values(bestByExercise)
+    .sort((a, b) => b.weight - a.weight)
+    .slice(0, limit);
+}
+
+export async function getMuscleDistributionFromExercises(
+  userId: number
+): Promise<{ muscleGroup: string; count: number }[]> {
+  const rows = await db
+    .select({
+      name: exercises.name,
+      sets: exercises.sets,
+      reps: exercises.reps,
+      weight: exercises.weight,
+    })
+    .from(exercises)
+    .innerJoin(workouts, eq(exercises.workoutId, workouts.id))
+    .where(eq(workouts.userId, userId));
+
+  const muscleMap: Record<string, number> = {};
+  const MUSCLE_KEYWORDS: Record<string, string[]> = {
+    chest: ["chest", "bench", "press", "fly", "pec"],
+    back: ["back", "row", "pull", "lat", "deadlift"],
+    legs: ["leg", "squat", "lunge", "calf", "quad", "hamstring", "glute"],
+    shoulders: ["shoulder", "delt", "press", "lateral raise", "ohp"],
+    biceps: ["bicep", "curl"],
+    triceps: ["tricep", "pushdown", "extension", "skull"],
+    abs: ["ab", "crunch", "plank", "sit-up"],
+    core: ["core", "plank", "dead bug"],
+  };
+
+  for (const r of rows) {
+    const name = (r.name ?? "").toLowerCase();
+    const vol = volume(r.sets, r.reps, r.weight);
+    if (vol === 0) continue;
+    let assigned = false;
+    for (const [group, keywords] of Object.entries(MUSCLE_KEYWORDS)) {
+      if (keywords.some((k) => name.includes(k))) {
+        muscleMap[group] = (muscleMap[group] ?? 0) + vol;
+        assigned = true;
+        break;
+      }
+    }
+    if (!assigned) muscleMap["other"] = (muscleMap["other"] ?? 0) + vol;
+  }
+
+  return Object.entries(muscleMap)
+    .map(([muscleGroup, count]) => ({ muscleGroup, count }))
+    .sort((a, b) => b.count - a.count);
+}
+
+export async function getStrengthProgress(
+  userId: number,
+  exerciseName?: string,
+  limit = 30
+): Promise<{ date: string; weight: number; exerciseName: string }[]> {
+  const rows = await db
+    .select({
+      date: workouts.date,
+      weight: exercises.weight,
+      name: exercises.name,
+    })
+    .from(exercises)
+    .innerJoin(workouts, eq(exercises.workoutId, workouts.id))
+    .where(
+      and(eq(workouts.userId, userId), gte(exercises.weight, 1))
+    )
+    .orderBy(asc(workouts.date));
+
+  const byDateExercise: Record<string, { weight: number; name: string }> = {};
+  for (const r of rows) {
+    const key = `${r.date}::${(r.name ?? "").toLowerCase()}`;
+    const w = r.weight ?? 0;
+    const existing = byDateExercise[key];
+    if (!existing || w > existing.weight) {
+      byDateExercise[key] = { weight: w, name: r.name ?? "" };
+    }
+  }
+
+  let result = Object.entries(byDateExercise).map(([k, v]) => {
+    const [date] = k.split("::");
+    return { date, weight: v.weight, exerciseName: v.name };
+  });
+
+  if (exerciseName) {
+    const search = exerciseName.trim().toLowerCase();
+    result = result.filter((r) =>
+      r.exerciseName.toLowerCase().includes(search)
+    );
+  }
+
+  result.sort((a, b) => a.date.localeCompare(b.date));
+  return result.slice(-limit);
+}
+
+export async function getWorkoutFrequency(
+  userId: number,
+  weeks = 12
+): Promise<{ week: string; count: number }[]> {
+  const data = await db
+    .select({ date: workouts.date })
+    .from(workouts)
+    .where(eq(workouts.userId, userId))
+    .orderBy(asc(workouts.date));
+
+  const byWeek: Record<string, number> = {};
+  const today = new Date();
+  for (let i = 0; i < weeks; i++) {
+    const d = new Date(today);
+    d.setDate(d.getDate() - 7 * (weeks - 1 - i));
+    const day = d.getDay();
+    const mondayOffset = day === 0 ? -6 : 1 - day;
+    const monday = new Date(d);
+    monday.setDate(d.getDate() + mondayOffset);
+    const weekKey = monday.toISOString().slice(0, 10);
+    byWeek[weekKey] = 0;
+  }
+
+  for (const row of data) {
+    const d = new Date(row.date + "T12:00:00");
+    const day = d.getDay();
+    const mondayOffset = day === 0 ? -6 : 1 - day;
+    const monday = new Date(d);
+    monday.setDate(d.getDate() + mondayOffset);
+    const weekKey = monday.toISOString().slice(0, 10);
+    if (weekKey in byWeek) byWeek[weekKey]++;
+  }
+
+  return Object.entries(byWeek)
+    .map(([week, count]) => ({ week, count }))
+    .sort((a, b) => a.week.localeCompare(b.week));
+}
+
+export async function getRecentWorkouts(
+  userId: number,
+  limit = 10
+): Promise<(Workout & { exercises: Exercise[] })[]> {
+  const userWorkouts = await db
+    .select()
+    .from(workouts)
+    .where(eq(workouts.userId, userId))
+    .orderBy(desc(workouts.date))
+    .limit(limit);
+  const result: (Workout & { exercises: Exercise[] })[] = [];
+  for (const w of userWorkouts) {
+    const exs = await getExercisesByWorkoutId(w.id);
+    result.push({ ...w, exercises: exs });
+  }
+  return result;
 }
 
 // --- Exercise Master (template exercises) ---

@@ -17,17 +17,42 @@ export type WorkoutDayExerciseWithExercise = {
   };
 };
 
+export type WeightLogEntry = {
+  id: number;
+  date: string;
+  type: string;
+  exercises: Array<{
+    id: number;
+    name: string;
+    sets: number | null;
+    reps: number | null;
+    weight: number | null;
+  }>;
+};
+
 type WorkoutDayCardProps = {
   dayName: string;
   exercises: WorkoutDayExerciseWithExercise[];
+  weightLogs?: WeightLogEntry[];
   onAddExercise: () => void;
+  onLogWorkout?: () => void;
   onRemoveExercise?: (id: string) => void;
 };
+
+function formatDate(d: string) {
+  return new Date(d + "T12:00:00").toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+}
 
 export function WorkoutDayCard({
   dayName,
   exercises,
+  weightLogs = [],
   onAddExercise,
+  onLogWorkout,
   onRemoveExercise,
 }: WorkoutDayCardProps) {
   const exercisesByGroup = useMemo(() => {
@@ -86,15 +111,77 @@ export function WorkoutDayCard({
             ))}
           </div>
         )}
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={onAddExercise}
-          className="w-full"
-          aria-label={`Add exercise to ${dayName}`}
-        >
-          + Add Exercise
-        </Button>
+        {weightLogs.length > 0 && (
+          <div className="space-y-2">
+            <span className="text-xs font-medium text-muted-foreground">
+              Weight logs
+            </span>
+            <ul className="space-y-2" role="list">
+              {weightLogs.map((log) => (
+                <li
+                  key={log.id}
+                  className="rounded-lg border border-border bg-surface-muted/50 px-3 py-2 text-sm"
+                >
+                  <span className="font-medium text-foreground">
+                    {formatDate(log.date)}
+                  </span>
+                  {log.exercises.some(
+                    (e) =>
+                      e.sets != null ||
+                      e.reps != null ||
+                      (e.weight != null && e.weight > 0)
+                  ) ? (
+                    <ul className="mt-1 space-y-0.5 text-muted-foreground">
+                      {log.exercises
+                        .filter(
+                          (e) =>
+                            e.sets != null ||
+                            e.reps != null ||
+                            (e.weight != null && e.weight > 0)
+                        )
+                        .map((ex) => (
+                          <li key={ex.id}>
+                            {ex.name}
+                            <span className="ml-2">
+                              — {ex.sets ?? "?"}×{ex.reps ?? "?"}
+                              {ex.weight != null && ex.weight > 0
+                                ? ` @ ${ex.weight} kg`
+                                : ""}
+                            </span>
+                          </li>
+                        ))}
+                    </ul>
+                  ) : (
+                    <span className="ml-2 text-muted-foreground">
+                      No exercises logged
+                    </span>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+        <div className="flex gap-2">
+          {onLogWorkout && exercises.length > 0 && (
+            <Button
+              size="sm"
+              onClick={onLogWorkout}
+              className="flex-1"
+              aria-label={`Log workout for ${dayName}`}
+            >
+              Log Workout
+            </Button>
+          )}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onAddExercise}
+            className={onLogWorkout && exercises.length > 0 ? "flex-1" : "w-full"}
+            aria-label={`Add exercise to ${dayName}`}
+          >
+            + Add Exercise
+          </Button>
+        </div>
       </CardContent>
     </Card>
   );

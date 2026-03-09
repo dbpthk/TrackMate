@@ -5,6 +5,7 @@ import Head from "next/head";
 import { WorkoutDayCard } from "@/components/WorkoutDayCard";
 import { AddExerciseModal } from "@/components/AddExerciseModal";
 import { DayMuscleGroupSelector } from "@/components/DayMuscleGroupSelector";
+import { LogWorkoutModal } from "@/components/LogWorkoutModal";
 
 type WorkoutDayExerciseWithExercise = {
   id: string;
@@ -45,10 +46,40 @@ export const getServerSideProps: GetServerSideProps = async (ctx) => {
   return { props: {} };
 };
 
+function getTodayDate() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+type LoggedWorkout = {
+  id: number;
+  date: string;
+  type: string;
+  exercises: Array<{
+    id: number;
+    name: string;
+    sets: number | null;
+    reps: number | null;
+    weight: number | null;
+  }>;
+};
+
+function normalizeType(t: string): string {
+  return t.trim().replace(/^Day \d+ —\s*/i, "");
+}
+
+function workoutsForDay(workouts: LoggedWorkout[], dayName: string): LoggedWorkout[] {
+  const norm = normalizeType(dayName);
+  return workouts.filter(
+    (w) => normalizeType(w.type) === norm || w.type === dayName
+  );
+}
+
 export default function WorkoutPage() {
   const [split, setSplit] = useState<WorkoutSplit | null>(null);
+  const [workouts, setWorkouts] = useState<LoggedWorkout[]>([]);
   const [loading, setLoading] = useState(true);
   const [addModalDay, setAddModalDay] = useState<WorkoutDay | null>(null);
+  const [logModalDay, setLogModalDay] = useState<WorkoutDay | null>(null);
 
   const fetchSplit = async () => {
     const res = await fetch("/api/workout-split");
@@ -56,11 +87,20 @@ export default function WorkoutPage() {
       const data = await res.json();
       setSplit(data);
     }
-    setLoading(false);
+  };
+
+  const fetchWorkouts = async () => {
+    const res = await fetch("/api/workouts");
+    if (res.ok) {
+      const data = await res.json();
+      setWorkouts(data);
+    }
   };
 
   useEffect(() => {
-    fetchSplit();
+    Promise.all([fetchSplit(), fetchWorkouts()]).finally(() =>
+      setLoading(false)
+    );
   }, []);
 
   const handleRemoveExercise = async (id: string) => {
@@ -68,7 +108,7 @@ export default function WorkoutPage() {
       method: "DELETE",
     });
     if (res.ok) {
-      await fetchSplit();
+      await Promise.all([fetchSplit(), fetchWorkouts()]);
     }
   };
 
@@ -79,8 +119,13 @@ export default function WorkoutPage() {
       body: JSON.stringify({ muscleGroups }),
     });
     if (res.ok) {
-      await fetchSplit();
+      await Promise.all([fetchSplit(), fetchWorkouts()]);
     }
+  };
+
+  const handleLogSave = () => {
+    fetchSplit();
+    fetchWorkouts();
   };
 
   return (
@@ -135,7 +180,9 @@ export default function WorkoutPage() {
                   key={day.id}
                   dayName={day.dayName}
                   exercises={day.workoutDayExercises}
+                  weightLogs={workoutsForDay(workouts, day.dayName)}
                   onAddExercise={() => setAddModalDay(day)}
+                  onLogWorkout={() => setLogModalDay(day)}
                   onRemoveExercise={handleRemoveExercise}
                 />
               ))}
@@ -151,6 +198,22 @@ export default function WorkoutPage() {
             workoutDayId={addModalDay.id}
             dayMuscleGroups={addModalDay.muscleGroups ?? []}
             onSave={fetchSplit}
+          />
+        )}
+        {logModalDay && (
+          <LogWorkoutModal
+            isOpen={!!logModalDay}
+            onClose={() => setLogModalDay(null)}
+            dayName={logModalDay.dayName}
+            exercises={logModalDay.workoutDayExercises.map((we) => ({
+              id: we.exerciseId,
+              name: we.exercise.name,
+              muscleGroup: we.exercise.muscleGroup,
+              sets: we.sets ?? undefined,
+              reps: we.reps ?? undefined,
+            }))}
+            date={getTodayDate()}
+            onSave={handleLogSave}
           />
         )}
       </main>
