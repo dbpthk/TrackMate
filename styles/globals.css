@@ -52,16 +52,7 @@
   --color-border: var(--color-border);
 }
 
-/* Smooth theme transition */
-html {
-  transition: background-color var(--transition-theme), color var(--transition-theme);
-}
-
-@media (prefers-reduced-motion: reduce) {
-  html {
-    transition: none;
-  }
-}
+/* Theme switches instantly - no transition to avoid perceived lag */
 
 body {
   background-color: var(--color-background);
