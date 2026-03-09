@@ -294,3 +294,59 @@ export async function removeBuddy(
     .delete(buddies)
     .where(and(eq(buddies.userId, userId), eq(buddies.buddyId, buddyId)));
 }
+
+// --- Analytics ---
+const volume = (s: number | null, r: number | null, w: number | null) =>
+  (s ?? 0) * (r ?? 0) * (w ?? 0);
+
+export async function getVolumeByDate(
+  userId: number
+): Promise<{ date: string; volume: number }[]> {
+  const data = await getWorkoutsWithExercisesByUserId(userId);
+  const byDate: Record<string, number> = {};
+  for (const w of data) {
+    const v = (w.exercises ?? []).reduce(
+      (sum, ex) => sum + volume(ex.sets, ex.reps, ex.weight),
+      0
+    );
+    byDate[w.date] = (byDate[w.date] ?? 0) + v;
+  }
+  return Object.entries(byDate)
+    .map(([date, volume]) => ({ date, volume }))
+    .sort((a, b) => a.date.localeCompare(b.date));
+}
+
+export async function getVolumeByWeek(
+  userId: number
+): Promise<{ week: string; volume: number }[]> {
+  const data = await getWorkoutsWithExercisesByUserId(userId);
+  const byWeek: Record<string, number> = {};
+  for (const w of data) {
+    const d = new Date(w.date + "T12:00:00");
+    const mon = new Date(d);
+    mon.setDate(d.getDate() - d.getDay() + 1);
+    const weekKey = mon.toISOString().slice(0, 10);
+    const v = (w.exercises ?? []).reduce(
+      (sum, ex) => sum + volume(ex.sets, ex.reps, ex.weight),
+      0
+    );
+    byWeek[weekKey] = (byWeek[weekKey] ?? 0) + v;
+  }
+  return Object.entries(byWeek)
+    .map(([week, volume]) => ({ week, volume }))
+    .sort((a, b) => a.week.localeCompare(b.week));
+}
+
+export async function getWorkoutTypeDistribution(
+  userId: number
+): Promise<{ type: string; count: number }[]> {
+  const data = await db
+    .select({ type: workouts.type })
+    .from(workouts)
+    .where(eq(workouts.userId, userId));
+  const byType: Record<string, number> = {};
+  for (const row of data) {
+    byType[row.type] = (byType[row.type] ?? 0) + 1;
+  }
+  return Object.entries(byType).map(([type, count]) => ({ type, count }));
+}

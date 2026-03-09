@@ -34,6 +34,12 @@ export default function Home() {
         >
           Workouts
         </Link>
+        <Link
+          href="/dashboard"
+          className="text-primary underline focus:outline-none focus:ring-2 focus:ring-primary"
+        >
+          Dashboard
+        </Link>
       </nav>
     </main>
   );
