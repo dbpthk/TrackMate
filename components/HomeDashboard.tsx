@@ -12,6 +12,7 @@ import {
   getWeekStartEnd,
   getTodaysFocus,
   getUpcomingWorkouts,
+  getDayOptionsForSplit,
   MOTIVATIONAL_QUOTES,
 } from "@/lib/home-utils";
 
@@ -33,12 +34,20 @@ export function HomeDashboard({
   const [workouts, setWorkouts] = useState(weekWorkouts);
   const [todayWorkout, setTodayWorkout] = useState(initialTodayWorkout);
   const [quoteIndex, setQuoteIndex] = useState(0);
-
-  const todayDate = getTodayDate();
-  const todaysFocus = getTodaysFocus(
+  const [splitDayNames, setSplitDayNames] = useState<string[]>([]);
+  const suggestedFocus = getTodaysFocus(
     user.trainingSplit || null,
     user.preferredDays || null
   );
+  const dayOptions = getDayOptionsForSplit(user.trainingSplit || null);
+  const [selectedDayType, setSelectedDayType] = useState<string>(
+    suggestedFocus || (dayOptions[0]?.value ?? "")
+  );
+
+  const todayDate = getTodayDate();
+  const todaysFocus = splitDayNames.length > 0
+    ? selectedDayType
+    : suggestedFocus || selectedDayType || dayOptions[0]?.value;
   const upcoming = getUpcomingWorkouts(
     user.trainingSplit || null,
     user.preferredDays || null,
@@ -73,7 +82,30 @@ export function HomeDashboard({
     return () => clearInterval(id);
   }, []);
 
+  useEffect(() => {
+    if (!user.trainingSplit) return;
+    const fetchSplit = async () => {
+      const res = await fetch("/api/workout-split");
+      if (res.ok) {
+        const data = await res.json();
+        const names = data?.workoutDays?.map((d: { dayName: string }) => d.dayName) ?? [];
+        setSplitDayNames(names);
+        setSelectedDayType((prev) => {
+          if (names.length === 0) return prev;
+          if (suggestedFocus && names.includes(suggestedFocus)) return suggestedFocus;
+          if (prev && names.includes(prev)) return prev;
+          return names[0];
+        });
+      }
+    };
+    fetchSplit();
+  }, [user.trainingSplit, suggestedFocus]);
+
   const firstName = user.name?.split(/\s+/)[0] || "there";
+
+  const availableDayOptions = splitDayNames.length > 0
+    ? splitDayNames.map((name) => ({ value: name, label: name }))
+    : dayOptions;
 
   return (
     <>
@@ -120,7 +152,33 @@ export function HomeDashboard({
               <CardContent className="space-y-4">
                 {todaysFocus ? (
                   <>
-                    <p className="text-foreground">{todaysFocus}</p>
+                    {availableDayOptions.length > 1 && !todayWorkout && (
+                      <div>
+                        <label
+                          htmlFor="home-day-select"
+                          className="mb-1.5 block text-sm font-medium text-foreground"
+                        >
+                          What workout today?
+                        </label>
+                        <select
+                          id="home-day-select"
+                          value={selectedDayType}
+                          onChange={(e) => setSelectedDayType(e.target.value)}
+                          className="w-full rounded-lg border border-border bg-surface px-4 py-3 text-base text-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                        >
+                          {availableDayOptions.map((opt) => (
+                            <option key={opt.value} value={opt.value}>
+                              {opt.label}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
+                    {(availableDayOptions.length <= 1 || todayWorkout) && (
+                      <p className="text-foreground">
+                        {todayWorkout ? todayWorkout.type : todaysFocus}
+                      </p>
+                    )}
                     {todayWorkout ? (
                       <label className="flex cursor-pointer items-center gap-3">
                         <input

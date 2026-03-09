@@ -92,6 +92,21 @@ export function getTodaysFocus(
   return line ? line.replace(/^Day \d+ — /, "") : null;
 }
 
+/** All day options for a training split (short names for display/selection) */
+export function getDayOptionsForSplit(
+  trainingSplit: string | null
+): { value: string; label: string }[] {
+  const normalized = normalizeProfileSplit(trainingSplit);
+  if (!normalized || !(normalized in TRAINING_SPLIT_DETAILS)) {
+    return [];
+  }
+  const details = TRAINING_SPLIT_DETAILS[normalized as keyof typeof TRAINING_SPLIT_DETAILS];
+  return details.map((d) => ({
+    value: d.replace(/^Day \d+ — /, ""),
+    label: d.replace(/^Day \d+ — /, ""),
+  }));
+}
+
 export function getUpcomingWorkouts(
   trainingSplit: string | null,
   preferredDays: string | null,
