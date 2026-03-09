@@ -29,6 +29,20 @@
       "when": 1773020000000,
       "tag": "0003_profile_workout_prefs",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1773021000000,
+      "tag": "0004_workout_splits_exercise_master",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1773022000000,
+      "tag": "0005_workout_days_muscle_groups",
+      "breakpoints": true
     }
   ]
 }

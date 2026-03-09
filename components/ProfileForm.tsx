@@ -3,7 +3,6 @@ import { sanitizeInput } from "@/utils/sanitize";
 import {
   EXPERIENCE_LEVELS,
   TRAINING_SPLITS,
-  TRAINING_SPLIT_DETAILS,
   TRAINING_SPLIT_MAX_DAYS,
   UNITS,
   WEEKDAYS,
@@ -351,27 +350,6 @@ export function ProfileForm({
                 </option>
               ))}
             </select>
-            {trainingSplit &&
-              TRAINING_SPLIT_DETAILS[
-                trainingSplit as keyof typeof TRAINING_SPLIT_DETAILS
-              ] && (
-                <div
-                  className="mt-3 rounded-lg border border-border bg-surface-muted/50 px-4 py-3 text-sm leading-relaxed text-foreground"
-                  role="status"
-                  aria-live="polite"
-                >
-                  <p className="mb-2 font-medium text-muted-foreground">
-                    Your selected split:
-                  </p>
-                  <ul className="space-y-1">
-                    {TRAINING_SPLIT_DETAILS[
-                      trainingSplit as keyof typeof TRAINING_SPLIT_DETAILS
-                    ].map((line) => (
-                      <li key={line}>{line}</li>
-                    ))}
-                  </ul>
-                </div>
-              )}
           </div>
           <div>
             <fieldset>

@@ -7,6 +7,8 @@ import {
   date,
   jsonb,
   primaryKey,
+  uuid,
+  timestamp,
 } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 
@@ -131,9 +133,80 @@ export const buddies = pgTable(
   (t) => [primaryKey({ columns: [t.userId, t.buddyId] })]
 );
 
+// --- Workout template / split structure (master exercises, splits, days) ---
+
+export const MUSCLE_GROUPS = [
+  "chest",
+  "triceps",
+  "back",
+  "biceps",
+  "shoulders",
+  "legs",
+  "abs",
+  "core",
+  "functional",
+] as const;
+
+/** Recommended muscle groups per day (Day 1–6) */
+export const RECOMMENDED_SPLIT_MUSCLE_GROUPS: string[][] = [
+  ["chest", "triceps"],
+  ["back", "biceps"],
+  ["legs", "shoulders"],
+  ["chest", "triceps", "abs"],
+  ["back", "biceps", "shoulders"],
+  ["functional", "core"],
+];
+
+export const SPLIT_TYPES = [
+  "push_pull_legs",
+  "bro_split",
+  "upper_lower",
+  "full_body",
+] as const;
+
+export const exerciseMaster = pgTable("exercise_master", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  name: text("name").notNull(),
+  muscleGroup: text("muscle_group").notNull(),
+  equipment: text("equipment"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const workoutSplits = pgTable("workout_splits", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: integer("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  splitType: text("split_type").notNull(),
+});
+
+export const workoutDays = pgTable("workout_days", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  splitId: uuid("split_id")
+    .notNull()
+    .references(() => workoutSplits.id, { onDelete: "cascade" }),
+  dayName: text("day_name").notNull(),
+  dayOrder: integer("day_order").notNull().default(0),
+  muscleGroups: jsonb("muscle_groups").$type<string[]>(),
+});
+
+export const workoutDayExercises = pgTable("workout_day_exercises", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  workoutDayId: uuid("workout_day_id")
+    .notNull()
+    .references(() => workoutDays.id, { onDelete: "cascade" }),
+  exerciseId: uuid("exercise_id")
+    .notNull()
+    .references(() => exerciseMaster.id, { onDelete: "cascade" }),
+  sets: integer("sets"),
+  reps: text("reps"),
+  order: integer("order").notNull().default(0),
+});
+
 export const usersRelations = relations(users, ({ many }) => ({
   workouts: many(workouts),
   buddies: many(buddies),
+  workoutSplits: many(workoutSplits),
 }));
 
 export const workoutsRelations = relations(workouts, ({ one, many }) => ({
@@ -145,7 +218,30 @@ export const exercisesRelations = relations(exercises, ({ one }) => ({
   workout: one(workouts),
 }));
 
+export const exerciseMasterRelations = relations(exerciseMaster, ({ many }) => ({
+  workoutDayExercises: many(workoutDayExercises),
+}));
+
+export const workoutSplitsRelations = relations(workoutSplits, ({ one, many }) => ({
+  user: one(users),
+  workoutDays: many(workoutDays),
+}));
+
+export const workoutDaysRelations = relations(workoutDays, ({ one, many }) => ({
+  split: one(workoutSplits),
+  workoutDayExercises: many(workoutDayExercises),
+}));
+
+export const workoutDayExercisesRelations = relations(workoutDayExercises, ({ one }) => ({
+  workoutDay: one(workoutDays),
+  exercise: one(exerciseMaster),
+}));
+
 export type User = typeof users.$inferSelect;
 export type Workout = typeof workouts.$inferSelect;
 export type Exercise = typeof exercises.$inferSelect;
 export type Buddy = typeof buddies.$inferSelect;
+export type ExerciseMaster = typeof exerciseMaster.$inferSelect;
+export type WorkoutSplit = typeof workoutSplits.$inferSelect;
+export type WorkoutDay = typeof workoutDays.$inferSelect;
+export type WorkoutDayExercise = typeof workoutDayExercises.$inferSelect;

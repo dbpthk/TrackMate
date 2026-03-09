@@ -5,7 +5,7 @@ import { useRouter } from "next/router";
 
 const navItems = [
   { href: "/", label: "Home", icon: HomeIcon },
-  { href: "/workouts", label: "Workouts", icon: WorkoutsIcon },
+  { href: "/workout", label: "Split", icon: WorkoutsIcon },
   { href: "/dashboard", label: "Stats", icon: StatsIcon },
   { href: "/profile", label: "Profile", icon: ProfileIcon },
 ];

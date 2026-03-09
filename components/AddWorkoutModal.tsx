@@ -49,7 +49,10 @@ export function AddWorkoutModal({
   const [type, setType] = useState("");
   const [exercises, setExercises] = useState<ExerciseInput[]>([]);
   const [suggestions, setSuggestions] = useState<
-    Record<string, { sets: number | null; reps: number | null; weight: number | null }>
+    Record<
+      string,
+      { sets: number | null; reps: number | null; weight: number | null }
+    >
   >({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -129,7 +132,9 @@ export function AddWorkoutModal({
           name: ex.name.trim().slice(0, 255),
           sets: ex.sets ? Math.max(0, Math.floor(Number(ex.sets))) : undefined,
           reps: ex.reps ? Math.max(0, Math.floor(Number(ex.reps))) : undefined,
-          weight: ex.weight ? Math.max(0, Math.floor(Number(ex.weight))) : undefined,
+          weight: ex.weight
+            ? Math.max(0, Math.floor(Number(ex.weight)))
+            : undefined,
         }));
       await onSave({ date, type: t, exercises: payload });
       onClose();
@@ -202,8 +207,14 @@ export function AddWorkoutModal({
                 key={i}
                 value={ex}
                 onChange={(v) => handleExerciseChange(i, v)}
-                onRemove={exercises.length > 1 ? () => handleRemoveExercise(i) : undefined}
-                suggestion={ex.name.trim() ? suggestions[ex.name.trim()] : undefined}
+                onRemove={
+                  exercises.length > 1
+                    ? () => handleRemoveExercise(i)
+                    : undefined
+                }
+                suggestion={
+                  ex.name.trim() ? suggestions[ex.name.trim()] : undefined
+                }
                 onNameBlur={(n) => n.trim() && fetchSuggestion(n)}
               />
             ))}
@@ -211,7 +222,11 @@ export function AddWorkoutModal({
         </div>
 
         {error && (
-          <p id="modal-error" role="alert" className="text-sm text-red-600 dark:text-red-400">
+          <p
+            id="modal-error"
+            role="alert"
+            className="text-sm text-red-600 dark:text-red-400"
+          >
             {error}
           </p>
         )}

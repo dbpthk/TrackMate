@@ -1,11 +1,8 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { useRouter } from "next/router";
 import Link from "next/link";
 import { Card, CardHeader, CardTitle, CardContent } from "./Card";
-import { Button } from "./Button";
-import { AddWorkoutModal } from "./AddWorkoutModal";
 import type { WorkoutWithExercises } from "./WorkoutCard";
 import {
   getGreeting,
@@ -33,10 +30,8 @@ export function HomeDashboard({
   weekWorkouts,
   todayWorkout: initialTodayWorkout,
 }: HomeDashboardProps) {
-  const router = useRouter();
   const [workouts, setWorkouts] = useState(weekWorkouts);
   const [todayWorkout, setTodayWorkout] = useState(initialTodayWorkout);
-  const [modalOpen, setModalOpen] = useState(false);
   const [quoteIndex, setQuoteIndex] = useState(0);
 
   const todayDate = getTodayDate();
@@ -51,7 +46,9 @@ export function HomeDashboard({
   );
   const weekDates = getWeekDates();
   const completedDates = new Set(workouts.map((w) => w.date));
-  const weekCompleted = weekDates.filter((d) => completedDates.has(d.date)).length;
+  const weekCompleted = weekDates.filter((d) =>
+    completedDates.has(d.date)
+  ).length;
   const totalWeekDays = user.preferredDays
     ? user.preferredDays.split(/[,\s]+/).filter(Boolean).length
     : 3;
@@ -61,9 +58,7 @@ export function HomeDashboard({
     if (res.ok) {
       const data: WorkoutWithExercises[] = await res.json();
       const { start, end } = getWeekStartEnd();
-      const week = data.filter(
-        (w) => w.date >= start && w.date <= end
-      );
+      const week = data.filter((w) => w.date >= start && w.date <= end);
       const today = data.find((w) => w.date === todayDate) ?? null;
       setWorkouts(week);
       setTodayWorkout(today ?? null);
@@ -77,52 +72,6 @@ export function HomeDashboard({
     );
     return () => clearInterval(id);
   }, []);
-
-  const handleSave = async (data: {
-    date: string;
-    type: string;
-    exercises: Array<{
-      name: string;
-      sets?: number;
-      reps?: number;
-      weight?: number;
-    }>;
-  }) => {
-    const createRes = await fetch("/api/workouts", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ date: data.date, type: data.type }),
-    });
-    const workout = await createRes.json();
-    if (!workout?.id) throw new Error("Failed to create workout");
-    for (const ex of data.exercises) {
-      await fetch("/api/exercises", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          workoutId: workout.id,
-          name: ex.name,
-          sets: ex.sets,
-          reps: ex.reps,
-          weight: ex.weight,
-        }),
-      });
-    }
-    await fetchWorkouts();
-  };
-
-  const getSuggestion = async (name: string) => {
-    const res = await fetch(
-      `/api/exercises/suggest?name=${encodeURIComponent(name.trim())}`
-    );
-    if (!res.ok) return { sets: null, reps: null, weight: null };
-    const data = await res.json();
-    return {
-      sets: data.sets ?? null,
-      reps: data.reps ?? null,
-      weight: data.weight ?? null,
-    };
-  };
 
   const firstName = user.name?.split(/\s+/)[0] || "there";
 
@@ -169,32 +118,53 @@ export function HomeDashboard({
                 <CardTitle as="h2">Today&apos;s Workout</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                {todayWorkout ? (
-                  <>
-                    <p className="text-foreground">
-                      <span className="font-medium">{todayWorkout.type}</span>
-                      {todayWorkout.exercises?.length ? (
-                        <span className="text-muted-foreground">
-                          {" "}
-                          · {todayWorkout.exercises.length} exercises
-                        </span>
-                      ) : null}
-                    </p>
-                    <p className="text-sm text-green-600 dark:text-green-400">
-                      ✓ Completed
-                    </p>
-                  </>
-                ) : todaysFocus ? (
+                {todaysFocus ? (
                   <>
                     <p className="text-foreground">{todaysFocus}</p>
-                    <Button
-                      size="lg"
-                      onClick={() => setModalOpen(true)}
-                      className="min-h-[3rem] w-full sm:w-auto"
-                      aria-label="Start workout"
-                    >
-                      Start Workout
-                    </Button>
+                    {todayWorkout ? (
+                      <label className="flex cursor-pointer items-center gap-3">
+                        <input
+                          type="checkbox"
+                          checked={true}
+                          onChange={async () => {
+                            await fetch(`/api/workouts/${todayWorkout.id}`, {
+                              method: "DELETE",
+                            });
+                            await fetchWorkouts();
+                          }}
+                          className="h-5 w-5 rounded border-border text-primary focus:ring-primary"
+                          aria-label="Mark as not completed"
+                        />
+                        <span className="text-sm font-medium text-green-600 dark:text-green-400">
+                          ✓ Completed — uncheck to mark as not done
+                        </span>
+                      </label>
+                    ) : (
+                      <label className="flex cursor-pointer items-center gap-3">
+                        <input
+                          type="checkbox"
+                          checked={false}
+                          onChange={async () => {
+                            const res = await fetch("/api/workouts", {
+                              method: "POST",
+                              headers: { "Content-Type": "application/json" },
+                              body: JSON.stringify({
+                                date: todayDate,
+                                type: todaysFocus,
+                              }),
+                            });
+                            if (res.ok) {
+                              await fetchWorkouts();
+                            }
+                          }}
+                          className="h-5 w-5 rounded border-border text-primary focus:ring-primary"
+                          aria-label="Mark today's session as completed"
+                        />
+                        <span className="text-sm text-foreground">
+                          Mark as completed
+                        </span>
+                      </label>
+                    )}
                   </>
                 ) : (
                   <p className="text-muted-foreground">
@@ -237,7 +207,9 @@ export function HomeDashboard({
                     </span>
                     <span
                       className="mt-1 text-lg"
-                      aria-label={done ? `${weekday} completed` : `${weekday} not done`}
+                      aria-label={
+                        done ? `${weekday} completed` : `${weekday} not done`
+                      }
                     >
                       {done ? "✓" : "—"}
                     </span>
@@ -256,11 +228,10 @@ export function HomeDashboard({
               <div className="flex gap-3 overflow-x-auto pb-2">
                 {upcoming.map(({ date, weekday, type }) => {
                   const done = completedDates.has(date);
-                  const isToday = date === todayDate;
                   return (
                     <Link
                       key={date}
-                      href="/workouts"
+                      href="/workout"
                       className={`flex min-w-[8rem] flex-col rounded-lg border p-4 shadow-sm transition-all hover:shadow-md ${
                         done
                           ? "border-primary/30 bg-primary/5"
@@ -287,31 +258,12 @@ export function HomeDashboard({
 
           {/* 5. Quick Actions */}
           <section aria-label="Quick actions">
-            <div className="grid gap-3 sm:grid-cols-3">
-              <Button
-                size="lg"
-                onClick={() => setModalOpen(true)}
-                className="min-h-[3rem]"
-                aria-label="Start workout"
-              >
-                Start Workout
-              </Button>
-              <Link
-                href="/workouts"
-                className="inline-flex h-11 min-h-[3rem] items-center justify-center rounded-lg bg-surface-muted px-6 text-base font-medium text-foreground shadow-sm transition-all hover:bg-surface-muted/80 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
-              >
-                View All Workouts
-              </Link>
-              <Button
-                variant="outline"
-                size="lg"
-                onClick={() => setModalOpen(true)}
-                className="min-h-[3rem]"
-                aria-label="Add custom workout"
-              >
-                Add Custom Workout
-              </Button>
-            </div>
+            <Link
+              href="/workout"
+              className="inline-flex h-11 min-h-[3rem] w-full items-center justify-center rounded-lg bg-primary px-6 text-base font-medium text-primary-foreground shadow-sm transition-all hover:bg-primary/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+            >
+              View My Split
+            </Link>
           </section>
 
           {/* 6. Motivational Section */}
@@ -325,17 +277,6 @@ export function HomeDashboard({
           </section>
         </div>
       </main>
-
-      <AddWorkoutModal
-        isOpen={modalOpen}
-        onClose={() => setModalOpen(false)}
-        initialData={{
-          date: todayDate,
-          type: todaysFocus || undefined,
-        }}
-        onSave={handleSave}
-        getSuggestion={getSuggestion}
-      />
     </>
   );
 }

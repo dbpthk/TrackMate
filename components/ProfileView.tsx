@@ -1,5 +1,5 @@
+import Link from "next/link";
 import type { ProfileFormValues } from "@/components/ProfileForm";
-import { TRAINING_SPLIT_DETAILS } from "@/drizzle/schema";
 
 export type ProfileViewProps = {
   user: ProfileFormValues;
@@ -130,19 +130,19 @@ export function ProfileView({ user }: ProfileViewProps) {
             </dt>
             <dd className="text-base leading-relaxed text-foreground">
               {formatValue(user.trainingSplit)}
-              {user.trainingSplit &&
-                user.trainingSplit in TRAINING_SPLIT_DETAILS && (
-                  <ul
-                    className="mt-3 space-y-1.5 rounded-lg border border-border bg-surface-muted/50 px-4 py-3 text-sm leading-relaxed text-foreground"
-                    role="list"
+              {user.trainingSplit && (
+                <div className="mt-3 flex flex-wrap items-center gap-2">
+                  <p className="text-sm text-muted-foreground">
+                    Go to the Split page to choose muscle groups and exercises for each day.
+                  </p>
+                  <Link
+                    href="/workout"
+                    className="inline-flex min-h-[2.25rem] items-center justify-center rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-sm transition-all hover:bg-primary/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
                   >
-                    {TRAINING_SPLIT_DETAILS[
-                      user.trainingSplit as keyof typeof TRAINING_SPLIT_DETAILS
-                    ].map((line) => (
-                      <li key={line}>{line}</li>
-                    ))}
-                  </ul>
-                )}
+                    Go to Split
+                  </Link>
+                </div>
+              )}
             </dd>
           </div>
           <div className="space-y-1">

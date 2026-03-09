@@ -70,7 +70,7 @@ export default function ProfilePage({ user }: ProfilePageProps) {
 
   const handleSuccess = () => {
     setIsEditing(false);
-    router.push("/");
+    router.replace(router.asPath);
   };
 
   const initialValues = {

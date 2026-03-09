@@ -2,17 +2,26 @@
  * All queries use Drizzle's parameterized API (eq, and, insert, etc.).
  * No raw SQL string interpolation - safe from injection.
  */
-import { eq, and, desc, inArray, gte, lte } from "drizzle-orm";
+import { eq, and, desc, asc, inArray, gte, lte, max } from "drizzle-orm";
 import { db } from "../db";
 import {
   users,
   workouts,
   exercises,
   buddies,
+  exerciseMaster,
+  workoutSplits,
+  workoutDays,
+  workoutDayExercises,
+  RECOMMENDED_SPLIT_MUSCLE_GROUPS,
   type User,
   type Workout,
   type Exercise,
   type Buddy,
+  type ExerciseMaster,
+  type WorkoutSplit,
+  type WorkoutDay,
+  type WorkoutDayExercise,
 } from "@/drizzle/schema";
 
 // --- Sanitization helpers ---
@@ -471,4 +480,247 @@ export async function getWorkoutTypeDistribution(
     byType[row.type] = (byType[row.type] ?? 0) + 1;
   }
   return Object.entries(byType).map(([type, count]) => ({ type, count }));
+}
+
+// --- Exercise Master (template exercises) ---
+export async function getExerciseMasterByMuscleGroup(
+  muscleGroup?: string
+): Promise<ExerciseMaster[]> {
+  if (muscleGroup) {
+    return db
+      .select()
+      .from(exerciseMaster)
+      .where(eq(exerciseMaster.muscleGroup, muscleGroup))
+      .orderBy(exerciseMaster.name);
+  }
+  return db
+    .select()
+    .from(exerciseMaster)
+    .orderBy(asc(exerciseMaster.muscleGroup), asc(exerciseMaster.name));
+}
+
+export async function getExerciseMasterById(
+  id: string
+): Promise<ExerciseMaster | undefined> {
+  const [ex] = await db
+    .select()
+    .from(exerciseMaster)
+    .where(eq(exerciseMaster.id, id))
+    .limit(1);
+  return ex;
+}
+
+// --- Workout Splits ---
+export async function getWorkoutSplitByUserId(
+  userId: number
+): Promise<(WorkoutSplit & { workoutDays: (WorkoutDay & { workoutDayExercises: (WorkoutDayExercise & { exercise: ExerciseMaster })[] })[] }) | undefined> {
+  const [split] = await db
+    .select()
+    .from(workoutSplits)
+    .where(eq(workoutSplits.userId, userId))
+    .limit(1);
+  if (!split) return undefined;
+
+  const days = await db
+    .select()
+    .from(workoutDays)
+    .where(eq(workoutDays.splitId, split.id))
+    .orderBy(asc(workoutDays.dayOrder), asc(workoutDays.dayName));
+
+  const result: WorkoutSplit & {
+    workoutDays: (WorkoutDay & {
+      workoutDayExercises: (WorkoutDayExercise & { exercise: ExerciseMaster })[];
+    })[];
+  } = {
+    ...split,
+    workoutDays: [],
+  };
+
+  for (const day of days) {
+    const dayExs = await db
+      .select()
+      .from(workoutDayExercises)
+      .where(eq(workoutDayExercises.workoutDayId, day.id))
+      .orderBy(asc(workoutDayExercises.order));
+    const withExercise: (WorkoutDayExercise & { exercise: ExerciseMaster })[] = [];
+    for (const de of dayExs) {
+      const ex = await getExerciseMasterById(de.exerciseId);
+      if (ex) withExercise.push({ ...de, exercise: ex });
+    }
+    result.workoutDays.push({ ...day, workoutDayExercises: withExercise });
+  }
+  return result;
+}
+
+export async function createOrUpdateWorkoutSplit(
+  userId: number,
+  splitType: string,
+  dayNames: string[]
+): Promise<WorkoutSplit> {
+  const existing = await db
+    .select()
+    .from(workoutSplits)
+    .where(eq(workoutSplits.userId, userId))
+    .limit(1);
+
+  if (existing.length > 0) {
+    const split = existing[0];
+    await db.update(workoutSplits).set({ splitType }).where(eq(workoutSplits.id, split.id));
+    const currentDays = await db
+      .select()
+      .from(workoutDays)
+      .where(eq(workoutDays.splitId, split.id));
+    for (let i = 0; i < dayNames.length; i++) {
+      const name = dayNames[i];
+      const match = currentDays.find((d) => d.dayOrder === i);
+      const recommended = RECOMMENDED_SPLIT_MUSCLE_GROUPS[i] ?? [];
+      if (match) {
+        await db
+          .update(workoutDays)
+          .set({
+            dayName: name,
+            dayOrder: i,
+            muscleGroups: Array.isArray(match.muscleGroups) && match.muscleGroups.length > 0
+              ? match.muscleGroups
+              : recommended,
+          })
+          .where(eq(workoutDays.id, match.id));
+      } else {
+        await db.insert(workoutDays).values({
+          splitId: split.id,
+          dayName: name,
+          dayOrder: i,
+          muscleGroups: recommended,
+        });
+      }
+    }
+    const toDelete = currentDays.filter((d) => d.dayOrder >= dayNames.length);
+    for (const d of toDelete) {
+      await db.delete(workoutDayExercises).where(eq(workoutDayExercises.workoutDayId, d.id));
+      await db.delete(workoutDays).where(eq(workoutDays.id, d.id));
+    }
+    return { ...split, splitType };
+  }
+
+  const [split] = await db
+    .insert(workoutSplits)
+    .values({ userId, splitType })
+    .returning();
+  if (!split) throw new Error("Failed to create workout split");
+
+  for (let i = 0; i < dayNames.length; i++) {
+    const recommended = RECOMMENDED_SPLIT_MUSCLE_GROUPS[i] ?? [];
+    await db.insert(workoutDays).values({
+      splitId: split.id,
+      dayName: dayNames[i],
+      dayOrder: i,
+      muscleGroups: recommended,
+    });
+  }
+  return split;
+}
+
+const MUSCLE_GROUP_LABELS: Record<string, string> = {
+  chest: "Chest",
+  triceps: "Triceps",
+  back: "Back",
+  biceps: "Biceps",
+  shoulders: "Shoulders",
+  legs: "Legs",
+  abs: "Abs",
+  core: "Core",
+  functional: "Functional Training",
+};
+
+function formatMuscleGroupsAsTitle(muscleGroups: string[]): string {
+  if (muscleGroups.length === 0) return "Rest Day";
+  return muscleGroups
+    .map((mg) => MUSCLE_GROUP_LABELS[mg] ?? mg)
+    .join(" + ");
+}
+
+export async function updateWorkoutDayMuscleGroups(
+  workoutDayId: string,
+  userId: number,
+  muscleGroups: string[]
+): Promise<WorkoutDay | undefined> {
+  const [day] = await db
+    .select()
+    .from(workoutDays)
+    .where(eq(workoutDays.id, workoutDayId))
+    .limit(1);
+  if (!day) return undefined;
+  const [split] = await db
+    .select()
+    .from(workoutSplits)
+    .where(eq(workoutSplits.id, day.splitId))
+    .limit(1);
+  if (!split || split.userId !== userId) return undefined;
+  const dayName = formatMuscleGroupsAsTitle(muscleGroups);
+  const [updated] = await db
+    .update(workoutDays)
+    .set({ muscleGroups, dayName })
+    .where(eq(workoutDays.id, workoutDayId))
+    .returning();
+  return updated;
+}
+
+export async function addExerciseToWorkoutDay(
+  workoutDayId: string,
+  exerciseId: string,
+  userId: number,
+  sets?: number,
+  reps?: string
+): Promise<WorkoutDayExercise> {
+  const day = await db.select().from(workoutDays).where(eq(workoutDays.id, workoutDayId)).limit(1);
+  if (!day[0]) throw new Error("Workout day not found");
+  const split = await db
+    .select()
+    .from(workoutSplits)
+    .where(eq(workoutSplits.id, day[0].splitId))
+    .limit(1);
+  if (!split[0] || split[0].userId !== userId) throw new Error("Unauthorized");
+
+  const ex = await getExerciseMasterById(exerciseId);
+  if (!ex) throw new Error("Exercise not found");
+
+  const [maxRow] = await db
+    .select({ maxOrder: max(workoutDayExercises.order) })
+    .from(workoutDayExercises)
+    .where(eq(workoutDayExercises.workoutDayId, workoutDayId));
+  const nextOrder = maxRow?.maxOrder != null ? maxRow.maxOrder + 1 : 0;
+
+  const [inserted] = await db
+    .insert(workoutDayExercises)
+    .values({
+      workoutDayId,
+      exerciseId,
+      sets: sets ?? null,
+      reps: reps ?? null,
+      order: nextOrder,
+    })
+    .returning();
+  if (!inserted) throw new Error("Failed to add exercise");
+  return inserted;
+}
+
+export async function removeExerciseFromWorkoutDay(
+  id: string,
+  userId: number
+): Promise<void> {
+  const [we] = await db
+    .select()
+    .from(workoutDayExercises)
+    .where(eq(workoutDayExercises.id, id))
+    .limit(1);
+  if (!we) throw new Error("Not found");
+  const day = await db.select().from(workoutDays).where(eq(workoutDays.id, we.workoutDayId)).limit(1);
+  if (!day[0]) throw new Error("Not found");
+  const split = await db
+    .select()
+    .from(workoutSplits)
+    .where(eq(workoutSplits.id, day[0].splitId))
+    .limit(1);
+  if (!split[0] || split[0].userId !== userId) throw new Error("Unauthorized");
+  await db.delete(workoutDayExercises).where(eq(workoutDayExercises.id, id));
 }

@@ -8,7 +8,7 @@ import { ThemeToggle } from "./ThemeToggle";
 
 const navLinksSignedIn = [
   { href: "/", label: "Home" },
-  { href: "/workouts", label: "Workouts" },
+  { href: "/workout", label: "Split" },
   { href: "/dashboard", label: "Stats" },
   { href: "/profile", label: "Profile" },
   { href: "/buddies", label: "Buddies" },
