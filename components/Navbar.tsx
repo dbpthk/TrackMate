@@ -29,6 +29,7 @@ export function Navbar() {
   const { data: session, status } = useSession();
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [contactOpen, setContactOpen] = useState(false);
 
   const isSignedIn = status === "authenticated" && !!session?.user;
   const links = isSignedIn ? navLinksSignedIn : navLinksSignedOut;
@@ -70,11 +71,30 @@ export function Navbar() {
               {label}
             </Link>
           ))}
+          {!isSignedIn && (
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setContactOpen((o) => !o)}
+                className={navLinkClass}
+              >
+                Contact
+              </button>
+              {contactOpen && (
+                <div className="absolute left-0 top-full mt-1 rounded border border-border bg-surface px-3 py-2 text-sm text-muted-foreground shadow-md">
+                  Please Email:{" "}
+                  <a
+                    href="mailto:dpthk2024@gmail.com"
+                    className="text-primary hover:underline"
+                  >
+                    dpthk2024@gmail.com
+                  </a>
+                </div>
+              )}
+            </div>
+          )}
           {isSignedIn && (
-            <Link
-              href="/api/auth/signout"
-              className={navLinkClass}
-            >
+            <Link href="/api/auth/signout" className={navLinkClass}>
               Sign out
             </Link>
           )}
@@ -146,6 +166,28 @@ export function Navbar() {
               {label}
             </Link>
           ))}
+          {!isSignedIn && (
+            <div>
+              <button
+                type="button"
+                onClick={() => setContactOpen((o) => !o)}
+                className={navLinkClass}
+              >
+                Contact
+              </button>
+              {contactOpen && (
+                <div className="rounded border border-border bg-surface px-3 py-2 text-sm text-muted-foreground">
+                  Please email:{" "}
+                  <a
+                    href="mailto:dpthk2024@gmail.com"
+                    className="text-primary hover:underline"
+                  >
+                    dpthk2024@gmail.com
+                  </a>
+                </div>
+              )}
+            </div>
+          )}
           {isSignedIn && (
             <Link
               href="/api/auth/signout"
