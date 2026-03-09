@@ -55,7 +55,7 @@ export function BuddyList({ buddies, onUnfollow, onFollow }: BuddyListProps) {
       <form
         onSubmit={handleFollow}
         className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-end"
-        aria-label="Add buddy by email"
+        aria-label="Send follow request by email"
       >
         <div className="flex-1">
           <Input
@@ -73,13 +73,13 @@ export function BuddyList({ buddies, onUnfollow, onFollow }: BuddyListProps) {
           disabled={loading || !email.trim()}
           aria-busy={loading}
         >
-          {loading ? "Adding…" : "Follow"}
+          {loading ? "Sending…" : "Send follow request"}
         </Button>
       </form>
 
       {buddies.length === 0 ? (
         <p className="text-muted-foreground" role="status">
-          No buddies yet. Search by email to follow someone.
+          No buddies yet. Send a follow request by email — they must accept to become your buddy.
         </p>
       ) : (
         <ul

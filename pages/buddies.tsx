@@ -2,12 +2,15 @@ import { useState, useEffect } from "react";
 import { getSession } from "next-auth/react";
 import type { GetServerSideProps } from "next";
 import Head from "next/head";
-import Link from "next/link";
 import { BuddyList, type Buddy } from "@/components/BuddyList";
 import {
-  BuddyWorkoutFeed,
-  type BuddyWorkout,
-} from "@/components/BuddyWorkoutFeed";
+  FollowRequestsSection,
+  type FollowRequest,
+} from "@/components/FollowRequestsSection";
+import {
+  SharedPersonalRecordsFeed,
+  type SharedPR,
+} from "@/components/SharedPersonalRecordsFeed";
 
 export const getServerSideProps: GetServerSideProps = async (ctx) => {
   const session = await getSession(ctx);
@@ -19,8 +22,10 @@ export const getServerSideProps: GetServerSideProps = async (ctx) => {
 
 export default function BuddiesPage() {
   const [buddies, setBuddies] = useState<Buddy[]>([]);
-  const [feed, setFeed] = useState<BuddyWorkout[]>([]);
+  const [followRequests, setFollowRequests] = useState<FollowRequest[]>([]);
+  const [sharedPRs, setSharedPRs] = useState<SharedPR[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingRequestId, setLoadingRequestId] = useState<number | null>(null);
 
   const fetchBuddies = async () => {
     const res = await fetch("/api/buddies");
@@ -30,17 +35,25 @@ export default function BuddiesPage() {
     }
   };
 
-  const fetchFeed = async () => {
-    const res = await fetch("/api/buddies/feed");
+  const fetchFollowRequests = async () => {
+    const res = await fetch("/api/buddies/requests");
     if (res.ok) {
       const data = await res.json();
-      setFeed(data);
+      setFollowRequests(Array.isArray(data) ? data : []);
+    }
+  };
+
+  const fetchSharedPRs = async () => {
+    const res = await fetch("/api/share/personal-records");
+    if (res.ok) {
+      const data = await res.json();
+      setSharedPRs(Array.isArray(data) ? data : []);
     }
   };
 
   const load = async () => {
     setLoading(true);
-    await Promise.all([fetchBuddies(), fetchFeed()]);
+    await Promise.all([fetchBuddies(), fetchFollowRequests(), fetchSharedPRs()]);
     setLoading(false);
   };
 
@@ -56,9 +69,37 @@ export default function BuddiesPage() {
     });
     if (!res.ok) {
       const data = await res.json();
-      throw new Error(data.error ?? "Failed to add");
+      throw new Error(data.error ?? "Failed to send request");
     }
     await load();
+  };
+
+  const handleAcceptRequest = async (id: number) => {
+    setLoadingRequestId(id);
+    try {
+      const res = await fetch(`/api/buddies/requests/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "accept" }),
+      });
+      if (res.ok) await load();
+    } finally {
+      setLoadingRequestId(null);
+    }
+  };
+
+  const handleRejectRequest = async (id: number) => {
+    setLoadingRequestId(id);
+    try {
+      const res = await fetch(`/api/buddies/requests/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "reject" }),
+      });
+      if (res.ok) await load();
+    } finally {
+      setLoadingRequestId(null);
+    }
   };
 
   const handleUnfollow = async (buddyId: number) => {
@@ -92,12 +133,18 @@ export default function BuddiesPage() {
             </p>
           ) : (
             <div className="space-y-8">
+              <FollowRequestsSection
+                requests={followRequests}
+                onAccept={handleAcceptRequest}
+                onReject={handleRejectRequest}
+                loadingId={loadingRequestId}
+              />
               <BuddyList
                 buddies={buddies}
                 onUnfollow={handleUnfollow}
                 onFollow={handleFollow}
               />
-              <BuddyWorkoutFeed workouts={feed} />
+              <SharedPersonalRecordsFeed shared={sharedPRs} />
             </div>
           )}
         </div>

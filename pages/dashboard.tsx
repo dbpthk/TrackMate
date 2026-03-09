@@ -1,9 +1,11 @@
+import { useState } from "react";
 import { getSession } from "next-auth/react";
 import type { GetServerSideProps } from "next";
 import dynamic from "next/dynamic";
 import Head from "next/head";
 import Link from "next/link";
 import { useRouter } from "next/router";
+import { SharePersonalRecordsModal } from "@/components/SharePersonalRecordsModal";
 import {
   getTotalWorkoutsCount,
   getWorkoutStreak,
@@ -136,6 +138,7 @@ export default function DashboardPage({
   volumeByWeek,
 }: DashboardProps) {
   const router = useRouter();
+  const [shareModalOpen, setShareModalOpen] = useState(false);
 
   const handleDeleteWorkout = async (id: number) => {
     if (!confirm("Delete this workout? This cannot be undone.")) return;
@@ -231,9 +234,21 @@ export default function DashboardPage({
                 )}
               </div>
               <div className="rounded-lg border border-border bg-surface p-4">
-                <h3 className="mb-3 font-medium text-foreground">
-                  Personal Records
-                </h3>
+                <div className="mb-3 flex items-center justify-between gap-2">
+                  <h3 className="font-medium text-foreground">
+                    Personal Records
+                  </h3>
+                  {personalRecords.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setShareModalOpen(true)}
+                      className="rounded px-3 py-1.5 text-sm font-medium text-primary hover:bg-primary/10 focus:outline-none focus:ring-2 focus:ring-primary"
+                      aria-label="Share personal records with buddies"
+                    >
+                      Share
+                    </button>
+                  )}
+                </div>
                 {personalRecords.length === 0 ? (
                   <p className="text-sm text-muted-foreground">
                     Log workouts with weights to track PRs.
@@ -328,6 +343,12 @@ export default function DashboardPage({
             )}
           </section>
         </div>
+
+        <SharePersonalRecordsModal
+          isOpen={shareModalOpen}
+          onClose={() => setShareModalOpen(false)}
+          personalRecords={personalRecords}
+        />
       </main>
     </>
   );

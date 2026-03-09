@@ -2,13 +2,15 @@
  * All queries use Drizzle's parameterized API (eq, and, insert, etc.).
  * No raw SQL string interpolation - safe from injection.
  */
-import { eq, and, desc, asc, inArray, gte, lte, max } from "drizzle-orm";
+import { eq, and, desc, asc, inArray, gte, lte, max, sql } from "drizzle-orm";
 import { db } from "../db";
 import {
   users,
   workouts,
   exercises,
   buddies,
+  buddyRequests,
+  sharedPersonalRecords,
   exerciseMaster,
   workoutSplits,
   workoutDays,
@@ -448,6 +450,173 @@ export async function getBuddiesWithUsers(
     .innerJoin(users, eq(buddies.buddyId, users.id))
     .where(eq(buddies.userId, userId));
   return rows;
+}
+
+// --- Buddy requests (follow requests requiring confirmation) ---
+export async function createBuddyRequest(
+  requesterId: number,
+  recipientId: number
+): Promise<{ id: number } | null> {
+  const existing = await db
+    .select()
+    .from(buddyRequests)
+    .where(
+      and(
+        eq(buddyRequests.requesterId, requesterId),
+        eq(buddyRequests.recipientId, recipientId),
+        eq(buddyRequests.status, "pending")
+      )
+  )
+    .limit(1);
+  if (existing.length > 0) return null;
+  const [r] = await db
+    .insert(buddyRequests)
+    .values({ requesterId, recipientId, status: "pending" })
+    .returning({ id: buddyRequests.id });
+  return r ?? null;
+}
+
+type PendingRequestRow = {
+  id: number;
+  requesterId: number;
+  requesterName: string;
+  requesterEmail: string;
+  createdAt: Date;
+};
+
+export async function getPendingRequestsForUser(
+  recipientId: number
+): Promise<PendingRequestRow[]> {
+  const rows = await db
+    .select({
+      id: buddyRequests.id,
+      requesterId: buddyRequests.requesterId,
+      requesterName: users.name,
+      requesterEmail: users.email,
+      createdAt: buddyRequests.createdAt,
+    })
+    .from(buddyRequests)
+    .innerJoin(users, eq(buddyRequests.requesterId, users.id))
+    .where(
+      and(
+        eq(buddyRequests.recipientId, recipientId),
+        eq(buddyRequests.status, "pending")
+      )
+    )
+    .orderBy(desc(buddyRequests.createdAt));
+  return rows;
+}
+
+export async function acceptBuddyRequest(
+  requestId: number,
+  recipientId: number
+): Promise<boolean> {
+  const conditions = and(
+    eq(buddyRequests.id, requestId),
+    eq(buddyRequests.recipientId, recipientId),
+    eq(buddyRequests.status, "pending")
+  );
+  const [req] = await db
+    .select()
+    .from(buddyRequests)
+    .where(conditions)
+    .limit(1);
+  if (!req) return false;
+  await db
+    .update(buddyRequests)
+    .set({ status: "accepted" })
+    .where(eq(buddyRequests.id, requestId));
+  await addBuddy({ userId: req.requesterId, buddyId: recipientId });
+  return true;
+}
+
+export async function rejectBuddyRequest(
+  requestId: number,
+  recipientId: number
+): Promise<boolean> {
+  const conditions = and(
+    eq(buddyRequests.id, requestId),
+    eq(buddyRequests.recipientId, recipientId),
+    eq(buddyRequests.status, "pending")
+  );
+  const [req] = await db
+    .select()
+    .from(buddyRequests)
+    .where(conditions)
+    .limit(1);
+  if (!req) return false;
+  await db
+    .update(buddyRequests)
+    .set({ status: "rejected" })
+    .where(eq(buddyRequests.id, requestId));
+  return true;
+}
+
+// --- Shared personal records ---
+export type SharedPRRecord = {
+  exerciseName: string;
+  weight: number;
+  reps: number | null;
+  date: string;
+};
+
+export async function sharePersonalRecordsWithBuddies(
+  sharerId: number,
+  buddyIds: number[],
+  records: SharedPRRecord[]
+): Promise<void> {
+  const validBuddyIds = buddyIds.filter(
+    (id) => id !== sharerId && Number.isInteger(id)
+  );
+  if (validBuddyIds.length === 0) return;
+  const myBuddies = await getBuddiesByUserId(sharerId);
+  const allowed = new Set(myBuddies.map((b) => b.buddyId));
+  const recipientIds = validBuddyIds.filter((id) => allowed.has(id));
+  if (recipientIds.length === 0) return;
+  const recordsJson = JSON.stringify(records);
+  for (const recipientId of recipientIds) {
+    await db
+      .insert(sharedPersonalRecords)
+      .values({
+        sharerId,
+        recipientId,
+        records: sql`${recordsJson}::jsonb`,
+      });
+  }
+}
+
+export async function getSharedPersonalRecordsReceived(
+  recipientId: number,
+  limit = 20
+): Promise<
+  Array<{
+    id: number;
+    sharerId: number;
+    sharerName: string;
+    sharedAt: Date;
+    records: SharedPRRecord[];
+  }>
+> {
+  const rows = await db
+    .select({
+      id: sharedPersonalRecords.id,
+      sharerId: sharedPersonalRecords.sharerId,
+      sharedAt: sharedPersonalRecords.sharedAt,
+      records: sharedPersonalRecords.records,
+      sharerName: users.name,
+    })
+    .from(sharedPersonalRecords)
+    .innerJoin(users, eq(sharedPersonalRecords.sharerId, users.id))
+    .where(eq(sharedPersonalRecords.recipientId, recipientId))
+    .orderBy(desc(sharedPersonalRecords.sharedAt))
+    .limit(limit);
+  return rows.map((r) => ({
+    id: r.id,
+    sharerId: r.sharerId,
+    sharerName: r.sharerName,
+    sharedAt: r.sharedAt,
+    records: (r.records ?? []) as SharedPRRecord[],
+  }));
 }
 
 export async function getBuddyWorkouts(
@@ -890,9 +1059,9 @@ export async function createOrUpdateWorkoutSplit(
       if (match) {
         const keepMuscleGroups =
           Array.isArray(match.muscleGroups) && match.muscleGroups.length > 0;
-        const muscleGroups = keepMuscleGroups ? match.muscleGroups : recommended;
+        const muscleGroups = keepMuscleGroups ? (match.muscleGroups ?? []) : recommended;
         const dayName = keepMuscleGroups
-          ? formatMuscleGroupsAsTitle(match.muscleGroups)
+          ? formatMuscleGroupsAsTitle(match.muscleGroups ?? [])
           : name;
         await db
           .update(workoutDays)

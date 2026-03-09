@@ -133,6 +133,35 @@ export const buddies = pgTable(
   (t) => [primaryKey({ columns: [t.userId, t.buddyId] })]
 );
 
+/** Follow requests: requester wants to follow recipient; recipient must confirm */
+export const buddyRequests = pgTable("buddy_requests", {
+  id: serial("id").primaryKey(),
+  requesterId: integer("requester_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  recipientId: integer("recipient_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  status: varchar("status", { length: 20 }).notNull().default("pending"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+/** Shared personal records: sharer sends their PRs to buddies */
+export const sharedPersonalRecords = pgTable("shared_personal_records", {
+  id: serial("id").primaryKey(),
+  sharerId: integer("sharer_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  recipientId: integer("recipient_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  sharedAt: timestamp("shared_at").defaultNow().notNull(),
+  records: jsonb("records").$type<
+    Array<{ exerciseName: string; weight: number; reps: number | null; date: string }>
+  >()
+    .notNull(),
+});
+
 // --- Workout template / split structure (master exercises, splits, days) ---
 
 export const MUSCLE_GROUPS = [
@@ -241,6 +270,7 @@ export type User = typeof users.$inferSelect;
 export type Workout = typeof workouts.$inferSelect;
 export type Exercise = typeof exercises.$inferSelect;
 export type Buddy = typeof buddies.$inferSelect;
+export type BuddyRequest = typeof buddyRequests.$inferSelect;
 export type ExerciseMaster = typeof exerciseMaster.$inferSelect;
 export type WorkoutSplit = typeof workoutSplits.$inferSelect;
 export type WorkoutDay = typeof workoutDays.$inferSelect;

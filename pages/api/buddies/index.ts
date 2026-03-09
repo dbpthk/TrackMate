@@ -3,7 +3,7 @@ import { getToken } from "next-auth/jwt";
 import { sanitizeInput, sanitizeEmail } from "@/utils/sanitize";
 import {
   getBuddiesWithUsers,
-  addBuddy,
+  createBuddyRequest,
   getUserByEmail,
   getBuddiesByUserId,
 } from "@/lib/db/queries";
@@ -39,11 +39,15 @@ export default async function handler(
       return res.status(400).json({ error: "Already following" });
     }
     try {
-      const b = await addBuddy({ userId, buddyId: targetId });
-      return res.status(201).json(b);
+      const req = await createBuddyRequest(userId, targetId);
+      if (!req) {
+        return res.status(400).json({ error: "Request already sent" });
+      }
+      return res.status(201).json({ id: req.id, message: "Follow request sent" });
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "Failed to add buddy";
-      return res.status(400).json({ error: msg });
+      console.error("[buddies POST]", err);
+      const msg = err instanceof Error ? err.message : "Failed to send request";
+      return res.status(500).json({ error: msg });
     }
   }
 
