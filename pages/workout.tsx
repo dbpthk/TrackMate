@@ -67,7 +67,10 @@ function normalizeType(t: string): string {
   return t.trim().replace(/^Day \d+ —\s*/i, "");
 }
 
-function workoutsForDay(workouts: LoggedWorkout[], dayName: string): LoggedWorkout[] {
+function workoutsForDay(
+  workouts: LoggedWorkout[],
+  dayName: string
+): LoggedWorkout[] {
   const norm = normalizeType(dayName);
   return workouts.filter(
     (w) => normalizeType(w.type) === norm || w.type === dayName
@@ -104,15 +107,21 @@ export default function WorkoutPage() {
   }, []);
 
   const handleRemoveExercise = async (id: string) => {
-    const res = await fetch(`/api/workout-day-exercises?id=${encodeURIComponent(id)}`, {
-      method: "DELETE",
-    });
+    const res = await fetch(
+      `/api/workout-day-exercises?id=${encodeURIComponent(id)}`,
+      {
+        method: "DELETE",
+      }
+    );
     if (res.ok) {
       await Promise.all([fetchSplit(), fetchWorkouts()]);
     }
   };
 
-  const handleUpdateMuscleGroups = async (dayId: string, muscleGroups: string[]) => {
+  const handleUpdateMuscleGroups = async (
+    dayId: string,
+    muscleGroups: string[]
+  ) => {
     const res = await fetch(`/api/workout-days/${dayId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
@@ -156,7 +165,8 @@ export default function WorkoutPage() {
                   Muscle groups for each day
                 </h2>
                 <p className="mb-4 text-sm text-muted-foreground">
-                  Select muscle groups for each day. Recommended splits are pre-selected.
+                  Select muscle groups for each day. Recommended splits are
+                  pre-selected.
                 </p>
                 <div className="mb-8 space-y-4">
                   {split.workoutDays.map((day) => (
@@ -166,7 +176,9 @@ export default function WorkoutPage() {
                       dayName={day.dayName}
                       dayOrder={day.dayOrder}
                       muscleGroups={day.muscleGroups ?? []}
-                      onSave={(groups) => handleUpdateMuscleGroups(day.id, groups)}
+                      onSave={(groups) =>
+                        handleUpdateMuscleGroups(day.id, groups)
+                      }
                     />
                   ))}
                 </div>

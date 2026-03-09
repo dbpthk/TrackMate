@@ -1,8 +1,10 @@
 /**
  * Seed the exercise_master table with the standard exercise list.
+ * Skips exercises that already exist (same name + muscleGroup).
  * Run: npx tsx scripts/seed-exercises.ts
  */
 import "dotenv/config";
+import { eq, and } from "drizzle-orm";
 import { db } from "../lib/db";
 import { exerciseMaster } from "../drizzle/schema";
 
@@ -98,14 +100,27 @@ const EXERCISES: { name: string; muscleGroup: string; equipment?: string }[] = [
 
 async function seed() {
   console.log("Seeding exercise_master...");
-  await db.insert(exerciseMaster).values(
-    EXERCISES.map((e) => ({
+  let added = 0;
+  for (const e of EXERCISES) {
+    const [existing] = await db
+      .select()
+      .from(exerciseMaster)
+      .where(
+        and(
+          eq(exerciseMaster.name, e.name),
+          eq(exerciseMaster.muscleGroup, e.muscleGroup)
+        )
+      )
+      .limit(1);
+    if (existing) continue;
+    await db.insert(exerciseMaster).values({
       name: e.name,
       muscleGroup: e.muscleGroup,
       equipment: e.equipment ?? null,
-    }))
-  );
-  console.log(`Inserted ${EXERCISES.length} exercises.`);
+    });
+    added++;
+  }
+  console.log(`Inserted ${added} new exercises (${EXERCISES.length - added} already existed).`);
 }
 
 seed().catch(console.error).finally(() => process.exit(0));

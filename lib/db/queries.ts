@@ -25,13 +25,17 @@ import {
 } from "@/drizzle/schema";
 
 // --- Sanitization helpers ---
-const trim = (s: string, max = 255) => String(s ?? "").trim().slice(0, max);
+const trim = (s: string, max = 255) =>
+  String(s ?? "")
+    .trim()
+    .slice(0, max);
 const toInt = (n: unknown): number | undefined =>
-  n === null || n === undefined ? undefined : Math.max(0, Math.floor(Number(n)));
+  n === null || n === undefined
+    ? undefined
+    : Math.max(0, Math.floor(Number(n)));
 const toDate = (d: string | Date): string =>
   d instanceof Date ? d.toISOString().slice(0, 10) : String(d).slice(0, 10);
-const isValidEmail = (e: string) =>
-  /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trim(e));
+const isValidEmail = (e: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trim(e));
 
 // --- Users CRUD ---
 export type CreateUserInput = {
@@ -103,14 +107,16 @@ export async function updateUser(
     updates.email = email;
   }
   if (input.age !== undefined)
-    updates.age = input.age === null ? null : toInt(input.age) ?? null;
+    updates.age = input.age === null ? null : (toInt(input.age) ?? null);
   if (input.height !== undefined)
-    updates.height = input.height === null ? null : toInt(input.height) ?? null;
+    updates.height =
+      input.height === null ? null : (toInt(input.height) ?? null);
   if (input.weight !== undefined)
-    updates.weight = input.weight === null ? null : toInt(input.weight) ?? null;
+    updates.weight =
+      input.weight === null ? null : (toInt(input.weight) ?? null);
   if (input.bodyFat !== undefined)
     updates.bodyFat =
-      input.bodyFat === null ? null : toInt(input.bodyFat) ?? null;
+      input.bodyFat === null ? null : (toInt(input.bodyFat) ?? null);
   if (input.trainingSplit !== undefined)
     updates.trainingSplit =
       input.trainingSplit === null
@@ -122,8 +128,7 @@ export async function updateUser(
         ? null
         : trim(input.preferredDays, 255) || null;
   if (input.units !== undefined)
-    updates.units =
-      input.units === null ? null : trim(input.units, 20) || null;
+    updates.units = input.units === null ? null : trim(input.units, 20) || null;
   if (input.experienceLevel !== undefined)
     updates.experienceLevel =
       input.experienceLevel === null
@@ -195,9 +200,7 @@ export async function getWorkoutByUserIdDateType(
   return w;
 }
 
-export async function getWorkoutsByUserId(
-  userId: number
-): Promise<Workout[]> {
+export async function getWorkoutsByUserId(userId: number): Promise<Workout[]> {
   return db.select().from(workouts).where(eq(workouts.userId, userId));
 }
 
@@ -354,10 +357,7 @@ export async function getExerciseById(
 export async function getExercisesByWorkoutId(
   workoutId: number
 ): Promise<Exercise[]> {
-  return db
-    .select()
-    .from(exercises)
-    .where(eq(exercises.workoutId, workoutId));
+  return db.select().from(exercises).where(eq(exercises.workoutId, workoutId));
 }
 
 export type UpdateExerciseInput = Partial<
@@ -605,9 +605,7 @@ export async function getPersonalRecords(
     })
     .from(exercises)
     .innerJoin(workouts, eq(exercises.workoutId, workouts.id))
-    .where(
-      and(eq(workouts.userId, userId), gte(exercises.weight, 1))
-    )
+    .where(and(eq(workouts.userId, userId), gte(exercises.weight, 1)))
     .orderBy(desc(workouts.date), desc(exercises.weight));
 
   const bestByExercise: Record<string, PersonalRecord> = {};
@@ -688,9 +686,7 @@ export async function getStrengthProgress(
     })
     .from(exercises)
     .innerJoin(workouts, eq(exercises.workoutId, workouts.id))
-    .where(
-      and(eq(workouts.userId, userId), gte(exercises.weight, 1))
-    )
+    .where(and(eq(workouts.userId, userId), gte(exercises.weight, 1)))
     .orderBy(asc(workouts.date));
 
   const byDateExercise: Record<string, { weight: number; name: string }> = {};
@@ -779,17 +775,26 @@ export async function getRecentWorkouts(
 export async function getExerciseMasterByMuscleGroup(
   muscleGroup?: string
 ): Promise<ExerciseMaster[]> {
+  let rows: ExerciseMaster[];
   if (muscleGroup) {
-    return db
+    rows = await db
       .select()
       .from(exerciseMaster)
       .where(eq(exerciseMaster.muscleGroup, muscleGroup))
-      .orderBy(exerciseMaster.name);
+      .orderBy(asc(exerciseMaster.name));
+  } else {
+    rows = await db
+      .select()
+      .from(exerciseMaster)
+      .orderBy(asc(exerciseMaster.muscleGroup), asc(exerciseMaster.name));
   }
-  return db
-    .select()
-    .from(exerciseMaster)
-    .orderBy(asc(exerciseMaster.muscleGroup), asc(exerciseMaster.name));
+  const seen = new Set<string>();
+  return rows.filter((r) => {
+    const key = `${(r.name ?? "").trim().toLowerCase()}::${r.muscleGroup}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
 }
 
 export async function getExerciseMasterById(
@@ -806,7 +811,16 @@ export async function getExerciseMasterById(
 // --- Workout Splits ---
 export async function getWorkoutSplitByUserId(
   userId: number
-): Promise<(WorkoutSplit & { workoutDays: (WorkoutDay & { workoutDayExercises: (WorkoutDayExercise & { exercise: ExerciseMaster })[] })[] }) | undefined> {
+): Promise<
+  | (WorkoutSplit & {
+      workoutDays: (WorkoutDay & {
+        workoutDayExercises: (WorkoutDayExercise & {
+          exercise: ExerciseMaster;
+        })[];
+      })[];
+    })
+  | undefined
+> {
   const [split] = await db
     .select()
     .from(workoutSplits)
@@ -822,7 +836,9 @@ export async function getWorkoutSplitByUserId(
 
   const result: WorkoutSplit & {
     workoutDays: (WorkoutDay & {
-      workoutDayExercises: (WorkoutDayExercise & { exercise: ExerciseMaster })[];
+      workoutDayExercises: (WorkoutDayExercise & {
+        exercise: ExerciseMaster;
+      })[];
     })[];
   } = {
     ...split,
@@ -835,7 +851,8 @@ export async function getWorkoutSplitByUserId(
       .from(workoutDayExercises)
       .where(eq(workoutDayExercises.workoutDayId, day.id))
       .orderBy(asc(workoutDayExercises.order));
-    const withExercise: (WorkoutDayExercise & { exercise: ExerciseMaster })[] = [];
+    const withExercise: (WorkoutDayExercise & { exercise: ExerciseMaster })[] =
+      [];
     for (const de of dayExs) {
       const ex = await getExerciseMasterById(de.exerciseId);
       if (ex) withExercise.push({ ...de, exercise: ex });
@@ -858,7 +875,10 @@ export async function createOrUpdateWorkoutSplit(
 
   if (existing.length > 0) {
     const split = existing[0];
-    await db.update(workoutSplits).set({ splitType }).where(eq(workoutSplits.id, split.id));
+    await db
+      .update(workoutSplits)
+      .set({ splitType })
+      .where(eq(workoutSplits.id, split.id));
     const currentDays = await db
       .select()
       .from(workoutDays)
@@ -873,9 +893,10 @@ export async function createOrUpdateWorkoutSplit(
           .set({
             dayName: name,
             dayOrder: i,
-            muscleGroups: Array.isArray(match.muscleGroups) && match.muscleGroups.length > 0
-              ? match.muscleGroups
-              : recommended,
+            muscleGroups:
+              Array.isArray(match.muscleGroups) && match.muscleGroups.length > 0
+                ? match.muscleGroups
+                : recommended,
           })
           .where(eq(workoutDays.id, match.id));
       } else {
@@ -889,7 +910,9 @@ export async function createOrUpdateWorkoutSplit(
     }
     const toDelete = currentDays.filter((d) => d.dayOrder >= dayNames.length);
     for (const d of toDelete) {
-      await db.delete(workoutDayExercises).where(eq(workoutDayExercises.workoutDayId, d.id));
+      await db
+        .delete(workoutDayExercises)
+        .where(eq(workoutDayExercises.workoutDayId, d.id));
       await db.delete(workoutDays).where(eq(workoutDays.id, d.id));
     }
     return { ...split, splitType };
@@ -927,9 +950,7 @@ const MUSCLE_GROUP_LABELS: Record<string, string> = {
 
 function formatMuscleGroupsAsTitle(muscleGroups: string[]): string {
   if (muscleGroups.length === 0) return "Rest Day";
-  return muscleGroups
-    .map((mg) => MUSCLE_GROUP_LABELS[mg] ?? mg)
-    .join(" + ");
+  return muscleGroups.map((mg) => MUSCLE_GROUP_LABELS[mg] ?? mg).join(" + ");
 }
 
 export async function updateWorkoutDayMuscleGroups(
@@ -965,7 +986,11 @@ export async function addExerciseToWorkoutDay(
   sets?: number,
   reps?: string
 ): Promise<WorkoutDayExercise> {
-  const day = await db.select().from(workoutDays).where(eq(workoutDays.id, workoutDayId)).limit(1);
+  const day = await db
+    .select()
+    .from(workoutDays)
+    .where(eq(workoutDays.id, workoutDayId))
+    .limit(1);
   if (!day[0]) throw new Error("Workout day not found");
   const split = await db
     .select()
@@ -1007,7 +1032,11 @@ export async function removeExerciseFromWorkoutDay(
     .where(eq(workoutDayExercises.id, id))
     .limit(1);
   if (!we) throw new Error("Not found");
-  const day = await db.select().from(workoutDays).where(eq(workoutDays.id, we.workoutDayId)).limit(1);
+  const day = await db
+    .select()
+    .from(workoutDays)
+    .where(eq(workoutDays.id, we.workoutDayId))
+    .limit(1);
   if (!day[0]) throw new Error("Not found");
   const split = await db
     .select()

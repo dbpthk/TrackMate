@@ -28,10 +28,12 @@ function getSuggestedGroupsForDay(dayName: string): string[] {
   const lower = dayName.toLowerCase();
   const groups: string[] = [];
   if (lower.includes("chest") || lower.includes("push")) groups.push("chest");
-  if (lower.includes("tricep") || lower.includes("push")) groups.push("triceps");
+  if (lower.includes("tricep") || lower.includes("push"))
+    groups.push("triceps");
   if (lower.includes("back") || lower.includes("pull")) groups.push("back");
   if (lower.includes("bicep") || lower.includes("pull")) groups.push("biceps");
-  if (lower.includes("shoulder") || lower.includes("delt")) groups.push("shoulders");
+  if (lower.includes("shoulder") || lower.includes("delt"))
+    groups.push("shoulders");
   if (lower.includes("leg")) groups.push("legs");
   if (lower.includes("abs") || lower.includes("core")) groups.push("abs");
   return groups.length > 0 ? groups : [];
@@ -46,9 +48,13 @@ export function AddExerciseModal({
   onSave,
 }: AddExerciseModalProps) {
   const [allExercises, setAllExercises] = useState<ExerciseMaster[]>([]);
-  const [selectedMuscleGroups, setSelectedMuscleGroups] = useState<Set<string>>(new Set());
+  const [selectedMuscleGroups, setSelectedMuscleGroups] = useState<Set<string>>(
+    new Set()
+  );
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [selectedExercises, setSelectedExercises] = useState<ExerciseMaster[]>([]);
+  const [selectedExercises, setSelectedExercises] = useState<ExerciseMaster[]>(
+    []
+  );
   const [sets, setSets] = useState("");
   const [reps, setReps] = useState("");
   const [loading, setLoading] = useState(false);
@@ -83,7 +89,8 @@ export function AddExerciseModal({
 
   useEffect(() => {
     if (!isOpen) return;
-    const toSelect = dayMuscleGroups.length > 0 ? dayMuscleGroups : suggestedGroups;
+    const toSelect =
+      dayMuscleGroups.length > 0 ? dayMuscleGroups : suggestedGroups;
     setSelectedMuscleGroups(new Set(toSelect));
     setSelectedIds(new Set());
     setSelectedExercises([]);
@@ -300,7 +307,9 @@ export function AddExerciseModal({
             disabled={loading || selectedExercises.length === 0}
             aria-busy={loading}
           >
-            {loading ? "Adding…" : `Add ${selectedExercises.length} exercise${selectedExercises.length !== 1 ? "s" : ""}`}
+            {loading
+              ? "Adding…"
+              : `Add ${selectedExercises.length} exercise${selectedExercises.length !== 1 ? "s" : ""}`}
           </Button>
           <Button type="button" variant="secondary" onClick={onClose}>
             Cancel
