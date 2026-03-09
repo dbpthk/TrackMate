@@ -1,4 +1,4 @@
-import { eq, and } from "drizzle-orm";
+import { eq, and, desc } from "drizzle-orm";
 import { db } from "../db";
 import {
   users,
@@ -134,6 +134,22 @@ export async function getWorkoutsByUserId(
   return db.select().from(workouts).where(eq(workouts.userId, userId));
 }
 
+export async function getWorkoutsWithExercisesByUserId(
+  userId: number
+): Promise<(Workout & { exercises: Exercise[] })[]> {
+  const userWorkouts = await db
+    .select()
+    .from(workouts)
+    .where(eq(workouts.userId, userId))
+    .orderBy(desc(workouts.date));
+  const result: (Workout & { exercises: Exercise[] })[] = [];
+  for (const w of userWorkouts) {
+    const exs = await getExercisesByWorkoutId(w.id);
+    result.push({ ...w, exercises: exs });
+  }
+  return result;
+}
+
 export type UpdateWorkoutInput = Partial<Omit<CreateWorkoutInput, "userId">>;
 
 export async function updateWorkout(
@@ -229,6 +245,29 @@ export async function updateExercise(
 
 export async function deleteExercise(id: number): Promise<void> {
   await db.delete(exercises).where(eq(exercises.id, id));
+}
+
+export async function getExerciseHistoryByUser(
+  userId: number,
+  exerciseName: string
+): Promise<Exercise[]> {
+  const name = trim(exerciseName);
+  if (!name) return [];
+  const rows = await db
+    .select({
+      id: exercises.id,
+      workoutId: exercises.workoutId,
+      name: exercises.name,
+      sets: exercises.sets,
+      reps: exercises.reps,
+      weight: exercises.weight,
+      duration: exercises.duration,
+    })
+    .from(exercises)
+    .innerJoin(workouts, eq(exercises.workoutId, workouts.id))
+    .where(and(eq(workouts.userId, userId), eq(exercises.name, name)))
+    .orderBy(desc(exercises.id));
+  return rows as Exercise[];
 }
 
 // --- Buddies CRUD ---

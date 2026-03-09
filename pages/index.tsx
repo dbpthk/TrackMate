@@ -28,6 +28,12 @@ export default function Home() {
         >
           Profile
         </Link>
+        <Link
+          href="/workouts"
+          className="text-primary underline focus:outline-none focus:ring-2 focus:ring-primary"
+        >
+          Workouts
+        </Link>
       </nav>
     </main>
   );
