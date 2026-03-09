@@ -15,6 +15,20 @@
       "when": 1773016018747,
       "tag": "0001_add_password",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1773018293790,
+      "tag": "0002_profile_fields",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1773020000000,
+      "tag": "0003_profile_workout_prefs",
+      "breakpoints": true
     }
   ]
 }

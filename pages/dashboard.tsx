@@ -8,10 +8,12 @@ const AnalyticsCharts = dynamic(
   () => import("@/components/AnalyticsCharts").then((m) => ({ default: m.AnalyticsCharts })),
   { ssr: false, loading: () => <p className="text-muted-foreground">Loading charts…</p> }
 );
+import { ProfileSummary } from "@/components/ProfileSummary";
 import {
   getVolumeByDate,
   getVolumeByWeek,
   getWorkoutTypeDistribution,
+  getUserById,
 } from "@/lib/db/queries";
 
 export const getServerSideProps: GetServerSideProps = async (ctx) => {
@@ -20,16 +22,29 @@ export const getServerSideProps: GetServerSideProps = async (ctx) => {
     return { redirect: { destination: "/auth/signin", permanent: false } };
   }
   const userId = Number(session.user.id);
-  const [volumeByDate, volumeByWeek, typeDistribution] = await Promise.all([
+  const [volumeByDate, volumeByWeek, typeDistribution, user] = await Promise.all([
     getVolumeByDate(userId),
     getVolumeByWeek(userId),
     getWorkoutTypeDistribution(userId),
+    getUserById(userId),
   ]);
   return {
     props: {
       volumeByDate,
       volumeByWeek,
       typeDistribution,
+      user: user
+        ? {
+            name: user.name,
+            goal: user.goal ?? "",
+            experienceLevel: user.experienceLevel ?? "",
+            trainingSplit: user.trainingSplit ?? "",
+            preferredDays: user.preferredDays ?? "",
+            height: user.height,
+            weight: user.weight,
+            units: user.units ?? "metric",
+          }
+        : null,
     },
   };
 };
@@ -38,12 +53,23 @@ type DashboardProps = {
   volumeByDate: { date: string; volume: number }[];
   volumeByWeek: { week: string; volume: number }[];
   typeDistribution: { type: string; count: number }[];
+  user: {
+    name: string;
+    goal: string;
+    experienceLevel: string;
+    trainingSplit: string;
+    preferredDays: string;
+    height: number | null;
+    weight: number | null;
+    units: string;
+  } | null;
 };
 
 export default function DashboardPage({
   volumeByDate,
   volumeByWeek,
   typeDistribution,
+  user,
 }: DashboardProps) {
   return (
     <>
@@ -87,6 +113,12 @@ export default function DashboardPage({
               </Link>
             </nav>
           </div>
+
+          {user && (
+            <div className="mb-6">
+              <ProfileSummary user={user} />
+            </div>
+          )}
 
           <AnalyticsCharts
             volumeByDate={volumeByDate}

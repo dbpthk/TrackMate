@@ -71,6 +71,14 @@ export type UpdateUserInput = {
   name?: string;
   email?: string;
   goal?: string | null;
+  experienceLevel?: string | null;
+  age?: number | null;
+  height?: number | null;
+  weight?: number | null;
+  bodyFat?: number | null;
+  trainingSplit?: string | null;
+  preferredDays?: string | null;
+  units?: string | null;
   stats?: Record<string, unknown> | null;
 };
 
@@ -85,6 +93,33 @@ export async function updateUser(
     if (!isValidEmail(email)) throw new Error("Invalid email");
     updates.email = email;
   }
+  if (input.age !== undefined)
+    updates.age = input.age === null ? null : toInt(input.age) ?? null;
+  if (input.height !== undefined)
+    updates.height = input.height === null ? null : toInt(input.height) ?? null;
+  if (input.weight !== undefined)
+    updates.weight = input.weight === null ? null : toInt(input.weight) ?? null;
+  if (input.bodyFat !== undefined)
+    updates.bodyFat =
+      input.bodyFat === null ? null : toInt(input.bodyFat) ?? null;
+  if (input.trainingSplit !== undefined)
+    updates.trainingSplit =
+      input.trainingSplit === null
+        ? null
+        : trim(input.trainingSplit, 100) || null;
+  if (input.preferredDays !== undefined)
+    updates.preferredDays =
+      input.preferredDays === null
+        ? null
+        : trim(input.preferredDays, 255) || null;
+  if (input.units !== undefined)
+    updates.units =
+      input.units === null ? null : trim(input.units, 20) || null;
+  if (input.experienceLevel !== undefined)
+    updates.experienceLevel =
+      input.experienceLevel === null
+        ? null
+        : trim(input.experienceLevel, 50) || null;
   if (input.goal !== undefined)
     updates.goal = input.goal === null ? null : trim(input.goal, 1000) || null;
   if (input.stats !== undefined) updates.stats = input.stats;

@@ -2,7 +2,12 @@ import type { NextApiRequest, NextApiResponse } from "next";
 import { getToken } from "next-auth/jwt";
 import { updateUser } from "@/lib/db/queries";
 import type { UpdateUserInput } from "@/lib/db/queries";
-import { sanitizeInput, sanitizeStats } from "@/utils/sanitize";
+import {
+  EXPERIENCE_LEVELS,
+  TRAINING_SPLITS,
+  UNITS,
+} from "@/drizzle/schema";
+import { sanitizeInput, sanitizeInt } from "@/utils/sanitize";
 
 export default async function handler(
   req: NextApiRequest,
@@ -20,25 +25,59 @@ export default async function handler(
 
   try {
     const userId = Number(token.id);
-    const { name, goal, stats } = req.body ?? {};
-
-    let statsObj: Record<string, unknown> | null | undefined = undefined;
-    if (stats !== undefined) {
-      const sanitized = sanitizeStats(stats);
-      if (
-        typeof stats === "string" &&
-        stats.trim() !== "" &&
-        sanitized === null
-      ) {
-        return res.status(400).json({ error: "Invalid JSON in stats" });
-      }
-      statsObj = sanitized;
-    }
+    const {
+      name,
+      goal,
+      experienceLevel,
+      age,
+      height,
+      weight,
+      bodyFat,
+      trainingSplit,
+      preferredDays,
+      units,
+    } = req.body ?? {};
 
     const updates: UpdateUserInput = {};
     if (name !== undefined) updates.name = sanitizeInput(name, 255);
-    if (goal !== undefined) updates.goal = sanitizeInput(goal, 1000) || null;
-    if (statsObj !== undefined) updates.stats = statsObj;
+    if (goal !== undefined)
+      updates.goal = goal === "" || goal === null ? null : sanitizeInput(goal, 500) || null;
+    if (experienceLevel !== undefined) {
+      const e = sanitizeInput(experienceLevel, 50).toLowerCase();
+      updates.experienceLevel =
+        e && EXPERIENCE_LEVELS.includes(e as (typeof EXPERIENCE_LEVELS)[number])
+          ? e
+          : null;
+    }
+    if (age !== undefined)
+      updates.age =
+        age === "" || age === null ? null : sanitizeInt(age) ?? null;
+    if (height !== undefined)
+      updates.height =
+        height === "" || height === null ? null : sanitizeInt(height) ?? null;
+    if (weight !== undefined)
+      updates.weight =
+        weight === "" || weight === null ? null : sanitizeInt(weight) ?? null;
+    if (bodyFat !== undefined)
+      updates.bodyFat =
+        bodyFat === "" || bodyFat === null ? null : sanitizeInt(bodyFat) ?? null;
+    if (trainingSplit !== undefined) {
+      const t = sanitizeInput(trainingSplit, 100);
+      updates.trainingSplit =
+        t && TRAINING_SPLITS.includes(t as (typeof TRAINING_SPLITS)[number])
+          ? t
+          : null;
+    }
+    if (preferredDays !== undefined)
+      updates.preferredDays =
+        preferredDays === "" || preferredDays === null
+          ? null
+          : sanitizeInput(preferredDays, 255) || null;
+    if (units !== undefined) {
+      const u = sanitizeInput(units, 20).toLowerCase();
+      updates.units =
+        u && UNITS.includes(u as (typeof UNITS)[number]) ? u : "metric";
+    }
 
     const user = await updateUser(userId, updates);
 
@@ -51,10 +90,14 @@ export default async function handler(
       name: user.name,
       email: user.email,
       goal: user.goal ?? "",
-      stats:
-        typeof user.stats === "object" && user.stats !== null
-          ? user.stats
-          : {},
+      experienceLevel: user.experienceLevel ?? "",
+      age: user.age,
+      height: user.height,
+      weight: user.weight,
+      bodyFat: user.bodyFat,
+      trainingSplit: user.trainingSplit ?? "",
+      preferredDays: user.preferredDays ?? "",
+      units: user.units ?? "metric",
     });
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Update failed";
