@@ -167,104 +167,100 @@ export function ProfileForm({
     return match ? parseInt(match[1], 10) : 0;
   })();
 
+  const inputClass =
+    "profile-input w-full rounded-lg border border-border bg-surface px-4 py-3 text-base text-foreground transition-colors placeholder:text-muted-foreground hover:border-muted-foreground/50 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 focus-visible:ring-2 focus-visible:ring-primary/20 disabled:cursor-not-allowed disabled:opacity-60";
+  const inputMutedClass =
+    "profile-input w-full rounded-lg border border-border bg-surface-muted px-4 py-3 text-base text-muted-foreground";
+  const labelClass = "mb-1.5 block text-sm font-medium text-foreground";
+
   return (
     <form
       onSubmit={handleSubmit}
-      className="flex flex-col gap-6"
+      className="flex flex-col gap-6 sm:gap-8"
       aria-label="Edit profile form"
       noValidate
     >
-      <fieldset className="space-y-4">
-        <legend className="text-lg font-semibold text-foreground">
+      <fieldset className="profile-section space-y-4 p-4 sm:space-y-5 sm:p-6">
+        <legend className="text-base font-semibold leading-tight text-foreground sm:text-lg">
           User Info
         </legend>
-        <div>
-          <label
-            htmlFor="profile-name"
-            className="mb-1 block text-sm font-medium text-foreground"
-          >
-            Name
-          </label>
-          <input
-            id="profile-name"
-            type="text"
-            autoComplete="name"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            required
-            maxLength={255}
-            aria-required="true"
-            className="w-full rounded border border-border bg-surface px-3 py-2 text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-          />
-        </div>
-        <div>
-          <label
-            htmlFor="profile-email"
-            className="mb-1 block text-sm font-medium text-foreground"
-          >
-            Email
-          </label>
-          <input
-            id="profile-email"
-            type="email"
-            value={initialValues.email}
-            readOnly
-            disabled
-            aria-readonly="true"
-            className="w-full rounded border border-border bg-surface-muted px-3 py-2 text-muted-foreground"
-          />
-          <p className="mt-1 text-xs text-muted-foreground">From your login</p>
-        </div>
-        <div>
-          <label
-            htmlFor="profile-goal"
-            className="mb-1 block text-sm font-medium text-foreground"
-          >
-            Goal
-          </label>
-          <input
-            id="profile-goal"
-            type="text"
-            value={goal}
-            onChange={(e) => setGoal(e.target.value)}
-            maxLength={500}
-            placeholder="e.g. Build muscle, lose weight"
-            className="w-full rounded border border-border bg-surface px-3 py-2 text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-          />
-        </div>
-        <div>
-          <label
-            htmlFor="profile-experience"
-            className="mb-1 block text-sm font-medium text-foreground"
-          >
-            Experience Level
-          </label>
-          <select
-            id="profile-experience"
-            value={experienceLevel}
-            onChange={(e) => setExperienceLevel(e.target.value)}
-            className="w-full rounded border border-border bg-surface px-3 py-2 text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-          >
-            <option value="">Select level</option>
-            {EXPERIENCE_LEVELS.map((l) => (
-              <option key={l} value={l}>
-                {l.charAt(0).toUpperCase() + l.slice(1)}
-              </option>
-            ))}
-          </select>
+        <div className="space-y-4">
+          <div>
+            <label htmlFor="profile-name" className={labelClass}>
+              Name
+            </label>
+            <input
+              id="profile-name"
+              type="text"
+              autoComplete="name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              required
+              maxLength={255}
+              aria-required="true"
+              className={inputClass}
+            />
+          </div>
+          <div>
+            <label htmlFor="profile-email" className={labelClass}>
+              Email
+            </label>
+            <input
+              id="profile-email"
+              type="email"
+              value={initialValues.email}
+              readOnly
+              disabled
+              aria-readonly="true"
+              className={inputMutedClass}
+            />
+            <p className="mt-1.5 text-xs text-muted-foreground">
+              From your login
+            </p>
+          </div>
+          <div>
+            <label htmlFor="profile-goal" className={labelClass}>
+              Goal
+            </label>
+            <input
+              id="profile-goal"
+              type="text"
+              value={goal}
+              onChange={(e) => setGoal(e.target.value)}
+              maxLength={500}
+              placeholder="e.g. Build muscle, lose weight"
+              className={inputClass}
+            />
+          </div>
+          <div>
+            <label htmlFor="profile-experience" className={labelClass}>
+              Experience Level
+            </label>
+            <select
+              id="profile-experience"
+              value={experienceLevel}
+              onChange={(e) => setExperienceLevel(e.target.value)}
+              aria-label="Select experience level"
+              className={inputClass}
+            >
+              <option value="">Select level</option>
+              {EXPERIENCE_LEVELS.map((l) => (
+                <option key={l} value={l}>
+                  {l.charAt(0).toUpperCase() + l.slice(1)}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
       </fieldset>
 
-      <fieldset className="space-y-4">
-        <legend className="text-lg font-semibold text-foreground">
+      <fieldset className="profile-section space-y-4 p-4 sm:space-y-5 sm:p-6">
+        <legend className="text-base font-semibold leading-tight text-foreground sm:text-lg">
           Body Stats
         </legend>
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <div>
-            <label
-              htmlFor="profile-height"
-              className="mb-1 block text-sm font-medium text-foreground"
-            >
+            <label htmlFor="profile-height" className={labelClass}>
               Height ({isMetric ? "cm" : "in"})
             </label>
             <input
@@ -274,14 +270,12 @@ export function ProfileForm({
               max={300}
               value={height}
               onChange={(e) => setHeight(e.target.value)}
-              className="w-full rounded border border-border bg-surface px-3 py-2 text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+              aria-label="Height"
+              className={inputClass}
             />
           </div>
           <div>
-            <label
-              htmlFor="profile-weight"
-              className="mb-1 block text-sm font-medium text-foreground"
-            >
+            <label htmlFor="profile-weight" className={labelClass}>
               Weight ({isMetric ? "kg" : "lbs"})
             </label>
             <input
@@ -291,14 +285,12 @@ export function ProfileForm({
               max={500}
               value={weight}
               onChange={(e) => setWeight(e.target.value)}
-              className="w-full rounded border border-border bg-surface px-3 py-2 text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+              aria-label="Weight"
+              className={inputClass}
             />
           </div>
           <div>
-            <label
-              htmlFor="profile-age"
-              className="mb-1 block text-sm font-medium text-foreground"
-            >
+            <label htmlFor="profile-age" className={labelClass}>
               Age
             </label>
             <input
@@ -308,15 +300,16 @@ export function ProfileForm({
               max={150}
               value={age}
               onChange={(e) => setAge(e.target.value)}
-              className="w-full rounded border border-border bg-surface px-3 py-2 text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+              aria-label="Age"
+              className={inputClass}
             />
           </div>
           <div>
-            <label
-              htmlFor="profile-bodyfat"
-              className="mb-1 block text-sm font-medium text-foreground"
-            >
-              Body Fat % <span className="text-muted-foreground">(optional)</span>
+            <label htmlFor="profile-bodyfat" className={labelClass}>
+              Body Fat %{" "}
+              <span className="font-normal text-muted-foreground">
+                (optional)
+              </span>
             </label>
             <input
               id="profile-bodyfat"
@@ -325,138 +318,155 @@ export function ProfileForm({
               max={80}
               value={bodyFat}
               onChange={(e) => setBodyFat(e.target.value)}
-              className="w-full rounded border border-border bg-surface px-3 py-2 text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+              aria-label="Body fat percentage"
+              className={inputClass}
             />
           </div>
         </div>
       </fieldset>
 
-      <fieldset className="space-y-4">
-        <legend className="text-lg font-semibold text-foreground">
+      <fieldset className="profile-section space-y-4 p-4 sm:space-y-5 sm:p-6">
+        <legend className="text-base font-semibold leading-tight text-foreground sm:text-lg">
           Workout Preferences
         </legend>
-        <div>
-          <label
-            htmlFor="profile-training-split"
-            className="mb-1 block text-sm font-medium text-foreground"
-          >
-            Training Split
-          </label>
-          <select
-            id="profile-training-split"
-            value={trainingSplit}
-            onChange={(e) => setTrainingSplit(e.target.value)}
-            className="w-full rounded border border-border bg-surface px-3 py-2 text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-          >
-            <option value="">Select split</option>
-            {TRAINING_SPLITS.map((s) => (
-              <option key={s} value={s}>
-                {s}
-              </option>
-            ))}
-          </select>
-          {trainingSplit &&
-            TRAINING_SPLIT_DETAILS[trainingSplit as keyof typeof TRAINING_SPLIT_DETAILS] && (
-              <div className="mt-3 rounded border border-border bg-surface-muted/50 px-4 py-3 text-sm text-foreground">
-                <p className="mb-2 font-medium text-muted-foreground">
-                  Your selected split:
-                </p>
-                <ul className="space-y-1">
-                  {TRAINING_SPLIT_DETAILS[
-                    trainingSplit as keyof typeof TRAINING_SPLIT_DETAILS
-                  ].map((line) => (
-                    <li key={line}>{line}</li>
-                  ))}
-                </ul>
-              </div>
-            )}
-        </div>
-        <div>
-          <fieldset>
-            <legend className="mb-2 block text-sm font-medium text-foreground">
-              Preferred Days
-              {maxDays > 0 && (
-                <span className="ml-2 font-normal text-muted-foreground">
-                  (select up to {maxDays})
-                </span>
+        <div className="space-y-4 sm:space-y-5">
+          <div>
+            <label
+              htmlFor="profile-training-split"
+              className={labelClass}
+            >
+              Training Split
+            </label>
+            <select
+              id="profile-training-split"
+              value={trainingSplit}
+              onChange={(e) => setTrainingSplit(e.target.value)}
+              aria-label="Select training split"
+              className={inputClass}
+            >
+              <option value="">Select split</option>
+              {TRAINING_SPLITS.map((s) => (
+                <option key={s} value={s}>
+                  {s}
+                </option>
+              ))}
+            </select>
+            {trainingSplit &&
+              TRAINING_SPLIT_DETAILS[
+                trainingSplit as keyof typeof TRAINING_SPLIT_DETAILS
+              ] && (
+                <div
+                  className="mt-3 rounded-lg border border-border bg-surface-muted/50 px-4 py-3 text-sm leading-relaxed text-foreground"
+                  role="status"
+                  aria-live="polite"
+                >
+                  <p className="mb-2 font-medium text-muted-foreground">
+                    Your selected split:
+                  </p>
+                  <ul className="space-y-1">
+                    {TRAINING_SPLIT_DETAILS[
+                      trainingSplit as keyof typeof TRAINING_SPLIT_DETAILS
+                    ].map((line) => (
+                      <li key={line}>{line}</li>
+                    ))}
+                  </ul>
+                </div>
               )}
-            </legend>
-            {maxDays === 0 ? (
-              <p className="text-sm text-muted-foreground">
-                Select a training split above to choose your preferred days.
-              </p>
-            ) : (
-              <div className="flex flex-wrap gap-3">
-                {WEEKDAYS.map((day) => {
-                  const validDays = preferredDays.filter((d) =>
-                    WEEKDAYS.includes(d as (typeof WEEKDAYS)[number])
-                  );
-                  const isChecked = validDays.includes(day);
-                  const currentCount = validDays.length;
-                  const atMax = currentCount >= maxDays;
-                  const isDisabled = !isChecked && atMax;
-                  return (
-                    <label
-                      key={day}
-                      className={`flex items-center gap-2 rounded border border-border bg-surface px-3 py-2 transition-colors has-checked:border-primary has-checked:bg-primary/10 ${
-                        isDisabled
-                          ? "cursor-not-allowed opacity-60"
-                          : "cursor-pointer"
-                      }`}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={isChecked}
-                        disabled={isDisabled}
-                        onChange={(e) => {
-                          if (e.target.checked) {
-                            setPreferredDays((prev) => {
-                              const validPrev = prev.filter((d) =>
-                                WEEKDAYS.includes(d as (typeof WEEKDAYS)[number])
+          </div>
+          <div>
+            <fieldset>
+              <legend className="mb-2 block text-sm font-medium text-foreground">
+                Preferred Days
+                {maxDays > 0 && (
+                  <span className="ml-2 font-normal text-muted-foreground">
+                    (select up to {maxDays})
+                  </span>
+                )}
+              </legend>
+              {maxDays === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  Select a training split above to choose your preferred days.
+                </p>
+              ) : (
+                <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:gap-3">
+                  {WEEKDAYS.map((day) => {
+                    const validDays = preferredDays.filter((d) =>
+                      WEEKDAYS.includes(d as (typeof WEEKDAYS)[number])
+                    );
+                    const isChecked = validDays.includes(day);
+                    const currentCount = validDays.length;
+                    const atMax = currentCount >= maxDays;
+                    const isDisabled = !isChecked && atMax;
+                    return (
+                      <label
+                        key={day}
+                        className={`flex min-h-[2.75rem] cursor-pointer items-center gap-2.5 rounded-lg border border-border bg-surface px-4 py-2.5 transition-all duration-150 has-checked:border-primary has-checked:bg-primary/10 has-checked:shadow-sm ${
+                          isDisabled
+                            ? "cursor-not-allowed opacity-50"
+                            : "hover:border-muted-foreground/50 active:scale-[0.98]"
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          disabled={isDisabled}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setPreferredDays((prev) => {
+                                const validPrev = prev.filter((d) =>
+                                  WEEKDAYS.includes(
+                                    d as (typeof WEEKDAYS)[number]
+                                  )
+                                );
+                                const next = [...new Set([...validPrev, day])];
+                                if (next.length > maxDays) return prev;
+                                return next.sort(
+                                  (a, b) =>
+                                    WEEKDAYS.indexOf(
+                                      a as (typeof WEEKDAYS)[number]
+                                    ) -
+                                    WEEKDAYS.indexOf(
+                                      b as (typeof WEEKDAYS)[number]
+                                    )
+                                );
+                              });
+                            } else {
+                              setPreferredDays((prev) =>
+                                prev.filter((d) => d !== day)
                               );
-                              const next = [...new Set([...validPrev, day])];
-                              if (next.length > maxDays) return prev;
-                              return next.sort(
-                                (a, b) =>
-                                  WEEKDAYS.indexOf(a as (typeof WEEKDAYS)[number]) -
-                                  WEEKDAYS.indexOf(b as (typeof WEEKDAYS)[number])
-                              );
-                            });
-                          } else {
-                            setPreferredDays((prev) =>
-                              prev.filter((d) => d !== day)
-                            );
-                          }
-                        }}
-                        className="h-4 w-4 rounded border-border text-primary focus:ring-primary disabled:cursor-not-allowed"
-                      />
-                      <span className="text-sm text-foreground">{day}</span>
-                    </label>
-                  );
-                })}
-              </div>
-            )}
-          </fieldset>
-        </div>
-        <div>
-          <label
-            htmlFor="profile-units"
-            className="mb-1 block text-sm font-medium text-foreground"
-          >
-            Units
-          </label>
-          <select
-            id="profile-units"
-            value={units}
-            onChange={(e) => setUnits(e.target.value)}
-            className="w-full rounded border border-border bg-surface px-3 py-2 text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-          >
-            {UNITS.map((u) => (
-              <option key={u} value={u}>
-                {u.charAt(0).toUpperCase() + u.slice(1)}
-              </option>
-            ))}
-          </select>
+                            }
+                          }}
+                          className="h-4 w-4 shrink-0 rounded border-border text-primary focus:ring-2 focus:ring-primary/20 focus:ring-offset-0 disabled:cursor-not-allowed"
+                          aria-label={`Select ${day}`}
+                        />
+                        <span className="text-sm font-medium text-foreground">
+                          {day}
+                        </span>
+                      </label>
+                    );
+                  })}
+                </div>
+              )}
+            </fieldset>
+          </div>
+          <div>
+            <label htmlFor="profile-units" className={labelClass}>
+              Units
+            </label>
+            <select
+              id="profile-units"
+              value={units}
+              onChange={(e) => setUnits(e.target.value)}
+              aria-label="Select units"
+              className={inputClass}
+            >
+              {UNITS.map((u) => (
+                <option key={u} value={u}>
+                  {u.charAt(0).toUpperCase() + u.slice(1)}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
       </fieldset>
 
@@ -464,18 +474,18 @@ export function ProfileForm({
         <p
           id="profile-error"
           role="alert"
-          className="text-sm text-red-600 dark:text-red-400"
+          className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-400"
         >
           {displayError}
         </p>
       )}
-      <div className="flex flex-wrap gap-3">
+      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:gap-3">
         <button
           type="submit"
           disabled={loading}
           aria-busy={loading}
           aria-disabled={loading}
-          className="rounded bg-primary px-4 py-2 font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
+          className="order-1 min-h-[2.75rem] rounded-lg bg-primary px-5 py-2.5 font-medium text-primary-foreground shadow-sm transition-all duration-150 hover:bg-primary/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background active:bg-primary/95 disabled:opacity-50 sm:order-none"
         >
           {loading ? "Saving…" : "Save profile"}
         </button>
@@ -483,7 +493,7 @@ export function ProfileForm({
           <button
             type="button"
             onClick={onCancel}
-            className="rounded border border-border bg-surface px-4 py-2 font-medium text-foreground transition-colors hover:bg-surface-muted"
+            className="min-h-[2.75rem] rounded-lg border border-border bg-surface px-5 py-2.5 font-medium text-foreground transition-all duration-150 hover:bg-surface-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background active:bg-surface-muted/80"
           >
             Cancel
           </button>

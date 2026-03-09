@@ -39,7 +39,7 @@ export function ProfileSummary({ user }: ProfileSummaryProps) {
         <h2 className="text-lg font-semibold text-foreground">Your Profile</h2>
         <Link
           href="/profile"
-          className="text-sm font-medium text-primary underline hover:text-primary/90 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
+          className="text-sm font-medium text-primary underline decoration-primary/30 underline-offset-2 transition-colors hover:text-primary/80 hover:decoration-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background rounded"
         >
           Edit profile
         </Link>

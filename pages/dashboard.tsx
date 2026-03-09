@@ -2,7 +2,6 @@ import { getSession } from "next-auth/react";
 import type { GetServerSideProps } from "next";
 import dynamic from "next/dynamic";
 import Head from "next/head";
-import Link from "next/link";
 
 const AnalyticsCharts = dynamic(
   () => import("@/components/AnalyticsCharts").then((m) => ({ default: m.AnalyticsCharts })),
@@ -82,36 +81,10 @@ export default function DashboardPage({
         aria-label="Analytics dashboard"
       >
         <div className="mx-auto max-w-6xl">
-          <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <h1 className="text-2xl font-semibold text-foreground">
+          <div className="mb-6">
+            <h1 className="text-2xl font-semibold text-foreground sm:text-3xl">
               Analytics
             </h1>
-            <nav className="flex gap-3">
-              <Link
-                href="/"
-                className="text-sm text-primary underline focus:outline-none focus:ring-2 focus:ring-primary"
-              >
-                Home
-              </Link>
-              <Link
-                href="/workouts"
-                className="text-sm text-primary underline focus:outline-none focus:ring-2 focus:ring-primary"
-              >
-                Workouts
-              </Link>
-              <Link
-                href="/profile"
-                className="text-sm text-primary underline focus:outline-none focus:ring-2 focus:ring-primary"
-              >
-                Profile
-              </Link>
-              <Link
-                href="/buddies"
-                className="text-sm text-primary underline focus:outline-none focus:ring-2 focus:ring-primary"
-              >
-                Buddies
-              </Link>
-            </nav>
           </div>
 
           {user && (

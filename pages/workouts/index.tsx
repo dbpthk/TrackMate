@@ -2,7 +2,6 @@ import { useState, useEffect } from "react";
 import { getSession } from "next-auth/react";
 import type { GetServerSideProps } from "next";
 import Head from "next/head";
-import Link from "next/link";
 import { WorkoutCard, type WorkoutWithExercises } from "@/components/WorkoutCard";
 import { AddWorkoutModal } from "@/components/AddWorkoutModal";
 import { Button } from "@/components/Button";
@@ -136,26 +135,12 @@ export default function WorkoutsPage() {
       >
         <div className="mx-auto max-w-2xl">
           <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <h1 className="text-2xl font-semibold text-foreground">
+            <h1 className="text-2xl font-semibold text-foreground sm:text-3xl">
               Workouts
             </h1>
-            <div className="flex gap-3">
-              <Link href="/" className="text-sm text-primary underline">
-                Home
-              </Link>
-              <Link href="/profile" className="text-sm text-primary underline">
-                Profile
-              </Link>
-              <Link href="/dashboard" className="text-sm text-primary underline">
-                Dashboard
-              </Link>
-              <Link href="/buddies" className="text-sm text-primary underline">
-                Buddies
-              </Link>
-              <Button onClick={openAdd} aria-label="Add workout">
-                Add workout
-              </Button>
-            </div>
+            <Button onClick={openAdd} aria-label="Add workout">
+              Add workout
+            </Button>
           </div>
 
           {loading ? (

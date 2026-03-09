@@ -1,20 +1,33 @@
 @import "tailwindcss";
 
+/* Design tokens - WCAG AA compliant */
 :root {
-  --color-background: #fafafa;
+  --color-background: #f8fafc;
   --color-foreground: #0f172a;
   --color-surface: #ffffff;
   --color-surface-muted: #f1f5f9;
-  --color-primary: #2563eb;
+  --color-primary: #1d4ed8;
   --color-primary-foreground: #ffffff;
-  --color-muted: #64748b;
-  --color-muted-foreground: #94a3b8;
+  --color-muted: #475569;
+  --color-muted-foreground: #64748b;
   --color-border: #e2e8f0;
+  --color-focus-ring: #1d4ed8;
+  --color-error: #b91c1c;
+  --color-error-muted: #fef2f2;
+  --spacing-page: 1rem;
+  --spacing-section: 1.5rem;
+  --radius-base: 0.5rem;
+  --radius-lg: 0.75rem;
+  --transition-theme: 0.2s ease;
+  --transition-interactive: 0.15s ease;
+  --line-height-tight: 1.25;
+  --line-height-normal: 1.5;
+  --line-height-relaxed: 1.625;
 }
 
 .dark {
   --color-background: #0f172a;
-  --color-foreground: #f8fafc;
+  --color-foreground: #f1f5f9;
   --color-surface: #1e293b;
   --color-surface-muted: #334155;
   --color-primary: #3b82f6;
@@ -22,6 +35,9 @@
   --color-muted: #94a3b8;
   --color-muted-foreground: #64748b;
   --color-border: #334155;
+  --color-focus-ring: #60a5fa;
+  --color-error: #f87171;
+  --color-error-muted: #450a0a;
 }
 
 @theme inline {
@@ -36,7 +52,55 @@
   --color-border: var(--color-border);
 }
 
+/* Smooth theme transition */
+html {
+  transition: background-color var(--transition-theme), color var(--transition-theme);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    transition: none;
+  }
+}
+
 body {
   background-color: var(--color-background);
   color: var(--color-foreground);
+  min-height: 100vh;
+}
+
+/* Focus ring utility for keyboard navigation */
+.focus-ring {
+  outline: none;
+}
+
+.focus-ring:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+/* Ensure links are keyboard accessible */
+a:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+/* Profile form input base - touch-friendly (44px min), accessible */
+.profile-input {
+  min-height: 2.75rem;
+  font-size: 1rem;
+  line-height: var(--line-height-normal);
+}
+
+@media (min-width: 768px) {
+  .profile-input {
+    min-height: 2.5rem;
+  }
+}
+
+/* Card section for profile */
+.profile-section {
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-border);
+  background-color: var(--color-surface);
 }

@@ -80,30 +80,10 @@ export default function BuddiesPage() {
         aria-label="Buddies page"
       >
         <div className="mx-auto max-w-2xl">
-          <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <h1 className="text-2xl font-semibold text-foreground">
+          <div className="mb-6">
+            <h1 className="text-2xl font-semibold text-foreground sm:text-3xl">
               Buddies
             </h1>
-            <nav className="flex gap-3">
-              <Link
-                href="/"
-                className="text-sm text-primary underline focus:outline-none focus:ring-2 focus:ring-primary"
-              >
-                Home
-              </Link>
-              <Link
-                href="/workouts"
-                className="text-sm text-primary underline focus:outline-none focus:ring-2 focus:ring-primary"
-              >
-                Workouts
-              </Link>
-              <Link
-                href="/profile"
-                className="text-sm text-primary underline focus:outline-none focus:ring-2 focus:ring-primary"
-              >
-                Profile
-              </Link>
-            </nav>
           </div>
 
           {loading ? (

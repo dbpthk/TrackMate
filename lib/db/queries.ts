@@ -2,7 +2,7 @@
  * All queries use Drizzle's parameterized API (eq, and, insert, etc.).
  * No raw SQL string interpolation - safe from injection.
  */
-import { eq, and, desc, inArray } from "drizzle-orm";
+import { eq, and, desc, inArray, gte, lte } from "drizzle-orm";
 import { db } from "../db";
 import {
   users,
@@ -171,6 +171,24 @@ export async function getWorkoutsByUserId(
   userId: number
 ): Promise<Workout[]> {
   return db.select().from(workouts).where(eq(workouts.userId, userId));
+}
+
+export async function getWorkoutsByUserIdInRange(
+  userId: number,
+  startDate: string,
+  endDate: string
+): Promise<Workout[]> {
+  return db
+    .select()
+    .from(workouts)
+    .where(
+      and(
+        eq(workouts.userId, userId),
+        gte(workouts.date, startDate),
+        lte(workouts.date, endDate)
+      )
+    )
+    .orderBy(desc(workouts.date));
 }
 
 export async function getWorkoutsWithExercisesByUserId(

@@ -8,6 +8,7 @@ import type { WorkoutWithExercises } from "./WorkoutCard";
 type AddWorkoutModalProps = {
   isOpen: boolean;
   onClose: () => void;
+  initialData?: { date?: string; type?: string };
   onSave: (data: {
     date: string;
     type: string;
@@ -37,6 +38,7 @@ const emptyExercise = (): ExerciseInput => ({
 export function AddWorkoutModal({
   isOpen,
   onClose,
+  initialData,
   onSave,
   onDelete,
   workout,
@@ -68,14 +70,14 @@ export function AddWorkoutModal({
           }))
         );
       } else {
-        setDate(today);
-        setType("");
+        setDate(initialData?.date ?? today);
+        setType(initialData?.type ?? "");
         setExercises([emptyExercise()]);
       }
       setError("");
       setSuggestions({});
     }
-  }, [isOpen, workout]);
+  }, [isOpen, workout, initialData]);
 
   const fetchSuggestion = useCallback(
     async (name: string) => {

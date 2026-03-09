@@ -70,7 +70,7 @@ export default function ProfilePage({ user }: ProfilePageProps) {
 
   const handleSuccess = () => {
     setIsEditing(false);
-    router.push("/dashboard");
+    router.push("/");
   };
 
   const initialValues = {
@@ -93,33 +93,27 @@ export default function ProfilePage({ user }: ProfilePageProps) {
         <title>Profile | TrackMate</title>
       </Head>
       <main
-        className="min-h-screen bg-background px-4 py-8"
+        className="min-h-screen bg-background px-4 py-6 sm:px-6 sm:py-8 md:px-8 lg:max-w-2xl lg:mx-auto lg:px-0"
         role="main"
         aria-label="Profile page"
       >
-        <div className="mx-auto max-w-xl">
-          <div className="mb-6 flex items-center justify-between">
-            <h1 className="text-2xl font-semibold text-foreground">
+        <div className="space-y-6 sm:space-y-8">
+          {/* Header - stacks on mobile, inline on tablet+ */}
+          <header className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <h1 className="text-xl font-semibold leading-tight text-foreground sm:text-2xl md:text-3xl">
               Your profile
             </h1>
-            <div className="flex items-center gap-3">
-              {!isEditing && (
-                <button
-                  type="button"
-                  onClick={() => setIsEditing(true)}
-                  className="rounded bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
-                >
-                  Edit profile
-                </button>
-              )}
-              <Link
-                href="/"
-                className="text-sm font-medium text-primary underline focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
+            {!isEditing && (
+              <button
+                type="button"
+                onClick={() => setIsEditing(true)}
+                aria-label="Edit your profile"
+                className="inline-flex min-h-[2.75rem] w-fit items-center justify-center rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground shadow-sm transition-all duration-150 hover:bg-primary/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background active:scale-[0.98] sm:text-base"
               >
-                Home
-              </Link>
-            </div>
-          </div>
+                Edit profile
+              </button>
+            )}
+          </header>
 
           {isEditing ? (
             <ProfileForm
@@ -132,10 +126,10 @@ export default function ProfilePage({ user }: ProfilePageProps) {
             <ProfileView user={initialValues} />
           )}
 
-          <p className="mt-6">
+          <p className="pt-4 border-t border-border">
             <Link
               href="/api/auth/signout"
-              className="text-sm text-muted-foreground underline hover:text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
+              className="text-sm text-muted-foreground underline decoration-muted-foreground/40 underline-offset-2 transition-colors hover:text-foreground hover:decoration-foreground/60 focus:outline-none focus-visible:rounded focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
             >
               Sign out
             </Link>
