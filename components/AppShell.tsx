@@ -20,7 +20,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <div
         id="main-content"
         tabIndex={-1}
-        className={`min-h-screen ${isSignedIn ? "pb-16 md:pb-0" : ""}`}
+        className={`min-h-[calc(100vh-3.5rem)] ${isSignedIn ? "pb-16 md:pb-0" : ""}`}
       >
         {children}
       </div>

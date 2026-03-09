@@ -149,7 +149,18 @@ export function LandingPage() {
       {/* Footer */}
       <footer className="border-t border-border px-4 py-8">
         <div className="mx-auto max-w-6xl text-center text-sm text-muted-foreground">
-          <p>© {new Date().getFullYear()} TrackMate</p>
+          <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1">
+            <Link href="/privacy" className="text-primary hover:underline">
+              Privacy
+            </Link>
+            <Link href="/terms" className="text-primary hover:underline">
+              Terms
+            </Link>
+            <Link href="/about" className="text-primary hover:underline">
+              About
+            </Link>
+          </div>
+          <p className="mt-4">© {new Date().getFullYear()} TrackMate</p>
           <p className="mt-1 flex items-center justify-center gap-1.5">
             Created by Dhruv{" "}
             <span className="inline-flex items-center text-xs opacity-80">
