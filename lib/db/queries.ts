@@ -24,6 +24,7 @@ const isValidEmail = (e: string) =>
 export type CreateUserInput = {
   name: string;
   email: string;
+  password: string;
   goal?: string;
   stats?: Record<string, unknown>;
 };
@@ -32,12 +33,14 @@ export async function createUser(input: CreateUserInput): Promise<User> {
   const name = trim(input.name);
   const email = trim(input.email).toLowerCase();
   if (!name || !email) throw new Error("Name and email required");
+  if (!input.password) throw new Error("Password required");
   if (!isValidEmail(email)) throw new Error("Invalid email");
   const [user] = await db
     .insert(users)
     .values({
       name,
       email,
+      password: input.password,
       goal: input.goal ? trim(input.goal, 1000) : null,
       stats: input.stats ?? null,
     })
@@ -60,7 +63,12 @@ export async function getUserByEmail(email: string): Promise<User | undefined> {
   return user;
 }
 
-export type UpdateUserInput = Partial<CreateUserInput>;
+export type UpdateUserInput = {
+  name?: string;
+  email?: string;
+  goal?: string | null;
+  stats?: Record<string, unknown> | null;
+};
 
 export async function updateUser(
   id: number,
@@ -73,7 +81,8 @@ export async function updateUser(
     if (!isValidEmail(email)) throw new Error("Invalid email");
     updates.email = email;
   }
-  if (input.goal !== undefined) updates.goal = trim(input.goal, 1000) || null;
+  if (input.goal !== undefined)
+    updates.goal = input.goal === null ? null : trim(input.goal, 1000) || null;
   if (input.stats !== undefined) updates.stats = input.stats;
   if (Object.keys(updates).length === 0) return getUserById(id);
   const [user] = await db
