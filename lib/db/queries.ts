@@ -888,15 +888,18 @@ export async function createOrUpdateWorkoutSplit(
       const match = currentDays.find((d) => d.dayOrder === i);
       const recommended = RECOMMENDED_SPLIT_MUSCLE_GROUPS[i] ?? [];
       if (match) {
+        const keepMuscleGroups =
+          Array.isArray(match.muscleGroups) && match.muscleGroups.length > 0;
+        const muscleGroups = keepMuscleGroups ? match.muscleGroups : recommended;
+        const dayName = keepMuscleGroups
+          ? formatMuscleGroupsAsTitle(match.muscleGroups)
+          : name;
         await db
           .update(workoutDays)
           .set({
-            dayName: name,
+            dayName,
             dayOrder: i,
-            muscleGroups:
-              Array.isArray(match.muscleGroups) && match.muscleGroups.length > 0
-                ? match.muscleGroups
-                : recommended,
+            muscleGroups,
           })
           .where(eq(workoutDays.id, match.id));
       } else {
