@@ -20,7 +20,7 @@ export const EXPERIENCE_LEVELS = [
 ] as const;
 
 export const TRAINING_SPLITS = [
-  "3-Day Split (Push/Pull/Legs)",
+  "3-Day Split",
   "4-Day Split",
   "5-Day Split",
   "6-Day Split",
@@ -31,10 +31,10 @@ export const TRAINING_SPLIT_DETAILS: Record<
   (typeof TRAINING_SPLITS)[number],
   string[]
 > = {
-  "3-Day Split (Push/Pull/Legs)": [
-    "Day 1 — Push",
-    "Day 2 — Pull",
-    "Day 3 — Legs",
+  "3-Day Split": [
+    "Day 1 — Chest + Triceps",
+    "Day 2 — Back + Biceps",
+    "Day 3 — Legs + Shoulders",
   ],
   "4-Day Split": [
     "Day 1 — Chest + Triceps",
@@ -64,7 +64,7 @@ export const TRAINING_SPLIT_MAX_DAYS: Record<
   (typeof TRAINING_SPLITS)[number],
   number
 > = {
-  "3-Day Split (Push/Pull/Legs)": 3,
+  "3-Day Split": 3,
   "4-Day Split": 4,
   "5-Day Split": 5,
   "6-Day Split": 6,

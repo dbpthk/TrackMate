@@ -7,6 +7,7 @@ import { useRouter } from "next/router";
 import { ProfileForm, type ProfileFormValues } from "@/components/ProfileForm";
 import { ProfileView } from "@/components/ProfileView";
 import { getUserById } from "@/lib/db/queries";
+import { normalizeProfileSplit } from "@/lib/workout-split-map";
 
 export const getServerSideProps: GetServerSideProps = async (ctx) => {
   const session = await getSession(ctx);
@@ -70,7 +71,7 @@ export default function ProfilePage({ user }: ProfilePageProps) {
 
   const handleSuccess = () => {
     setIsEditing(false);
-    router.replace(router.asPath);
+    router.push("/");
   };
 
   const initialValues = {
@@ -82,7 +83,7 @@ export default function ProfilePage({ user }: ProfilePageProps) {
     height: user.height,
     weight: user.weight,
     bodyFat: user.bodyFat,
-    trainingSplit: user.trainingSplit,
+    trainingSplit: normalizeProfileSplit(user.trainingSplit) ?? user.trainingSplit,
     preferredDays: user.preferredDays,
     units: user.units,
   };

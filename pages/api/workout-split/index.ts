@@ -18,15 +18,12 @@ export default async function handler(
   const userId = Number(token.id);
 
   if (req.method === "GET") {
-    let split = await getWorkoutSplitByUserId(userId);
-    if (!split) {
-      const user = await getUserById(userId);
-      const profileSplit = user?.trainingSplit ?? null;
-      const splitType = getSplitTypeFromProfile(profileSplit);
-      const dayNames = getDayNamesFromProfileSplit(profileSplit);
-      await createOrUpdateWorkoutSplit(userId, splitType, dayNames);
-      split = await getWorkoutSplitByUserId(userId);
-    }
+    const user = await getUserById(userId);
+    const profileSplit = user?.trainingSplit ?? null;
+    const splitType = getSplitTypeFromProfile(profileSplit);
+    const dayNames = getDayNamesFromProfileSplit(profileSplit);
+    await createOrUpdateWorkoutSplit(userId, splitType, dayNames);
+    const split = await getWorkoutSplitByUserId(userId);
     if (!split) {
       return res.status(404).json({ error: "Split not found" });
     }

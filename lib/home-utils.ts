@@ -1,4 +1,5 @@
 import { TRAINING_SPLIT_DETAILS } from "@/drizzle/schema";
+import { normalizeProfileSplit } from "@/lib/workout-split-map";
 
 const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"] as const;
 
@@ -78,10 +79,11 @@ export function getTodaysFocus(
   trainingSplit: string | null,
   preferredDays: string | null
 ): string | null {
-  if (!trainingSplit || !preferredDays || !(trainingSplit in TRAINING_SPLIT_DETAILS)) {
+  const normalized = normalizeProfileSplit(trainingSplit);
+  if (!normalized || !preferredDays || !(normalized in TRAINING_SPLIT_DETAILS)) {
     return null;
   }
-  const details = TRAINING_SPLIT_DETAILS[trainingSplit as keyof typeof TRAINING_SPLIT_DETAILS];
+  const details = TRAINING_SPLIT_DETAILS[normalized as keyof typeof TRAINING_SPLIT_DETAILS];
   const days = preferredDays.split(/[,\s]+/).filter(Boolean);
   const today = getTodayWeekday();
   const idx = days.findIndex((d) => d.toLowerCase() === today.toLowerCase());
@@ -95,10 +97,11 @@ export function getUpcomingWorkouts(
   preferredDays: string | null,
   count: number
 ): { date: string; weekday: string; type: string }[] {
-  if (!trainingSplit || !preferredDays || !(trainingSplit in TRAINING_SPLIT_DETAILS)) {
+  const normalized = normalizeProfileSplit(trainingSplit);
+  if (!normalized || !preferredDays || !(normalized in TRAINING_SPLIT_DETAILS)) {
     return [];
   }
-  const details = TRAINING_SPLIT_DETAILS[trainingSplit as keyof typeof TRAINING_SPLIT_DETAILS];
+  const details = TRAINING_SPLIT_DETAILS[normalized as keyof typeof TRAINING_SPLIT_DETAILS];
   const days = preferredDays.split(/[,\s]+/).filter(Boolean);
   const today = new Date();
   const result: { date: string; weekday: string; type: string }[] = [];

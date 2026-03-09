@@ -14,12 +14,22 @@ type ExerciseMaster = {
   createdAt: string;
 };
 
+type ExistingExercise = {
+  id: string;
+  name: string;
+  muscleGroup: string;
+  sets?: number | null;
+  reps?: string | null;
+};
+
 type AddExerciseModalProps = {
   isOpen: boolean;
   onClose: () => void;
   dayName: string;
   workoutDayId: string;
   dayMuscleGroups?: string[];
+  /** Exercises already in this day — shown at top for reference */
+  existingExercises?: ExistingExercise[];
   onSave: () => void | Promise<void>;
 };
 
@@ -45,6 +55,7 @@ export function AddExerciseModal({
   dayName,
   workoutDayId,
   dayMuscleGroups = [],
+  existingExercises = [],
   onSave,
 }: AddExerciseModalProps) {
   const [allExercises, setAllExercises] = useState<ExerciseMaster[]>([]);
@@ -75,6 +86,14 @@ export function AddExerciseModal({
       .filter(([, exs]) => exs.length > 0)
       .sort(([a], [b]) => a.localeCompare(b));
   }, [allExercises]);
+
+  const existingNamesLower = useMemo(
+    () => new Set(existingExercises.map((e) => (e.name ?? "").trim().toLowerCase())),
+    [existingExercises]
+  );
+
+  const isAlreadyInDay = (ex: ExerciseMaster) =>
+    existingNamesLower.has((ex.name ?? "").trim().toLowerCase());
 
   /** Selected exercises grouped by muscle */
   const selectedByGroup = useMemo(() => {
@@ -123,6 +142,7 @@ export function AddExerciseModal({
   };
 
   const toggleExercise = (ex: ExerciseMaster) => {
+    if (isAlreadyInDay(ex)) return;
     setSelectedIds((prev) => {
       const next = new Set(prev);
       if (next.has(ex.id)) next.delete(ex.id);
@@ -170,6 +190,16 @@ export function AddExerciseModal({
     }
   };
 
+  const existingByGroup = useMemo(() => {
+    const map: Record<string, ExistingExercise[]> = {};
+    for (const ex of existingExercises) {
+      const mg = ex.muscleGroup;
+      if (!map[mg]) map[mg] = [];
+      map[mg].push(ex);
+    }
+    return Object.entries(map).sort(([a], [b]) => a.localeCompare(b));
+  }, [existingExercises]);
+
   return (
     <Modal
       isOpen={isOpen}
@@ -178,6 +208,34 @@ export function AddExerciseModal({
       aria-describedby={error ? "add-exercise-error" : undefined}
     >
       <form onSubmit={handleSubmit} className="space-y-4">
+        {existingExercises.length > 0 && (
+          <div className="rounded-lg border border-border bg-surface-muted/50 p-3">
+            <label className="mb-2 block text-sm font-medium text-foreground">
+              Already in this day
+            </label>
+            <div className="max-h-24 space-y-2 overflow-y-auto">
+              {existingByGroup.map(([group, exs]) => (
+                <div key={group}>
+                  <span className="text-xs font-medium capitalize text-muted-foreground">
+                    {group}
+                  </span>
+                  <ul className="mt-0.5 space-y-0.5 text-sm text-foreground">
+                    {exs.map((ex) => (
+                      <li key={ex.id}>
+                        {ex.name}
+                        {(ex.sets != null || ex.reps) && (
+                          <span className="ml-2 text-muted-foreground">
+                            — {ex.sets ?? "?"} × {ex.reps ?? "?"}
+                          </span>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
         <div>
           <label className="mb-2 block text-sm font-medium text-foreground">
             Select muscle groups for this day
@@ -218,19 +276,36 @@ export function AddExerciseModal({
                       {group}
                     </span>
                     <ul className="mt-1.5 space-y-0.5">
-                      {exs.map((ex) => (
-                        <li key={ex.id}>
-                          <label className="flex cursor-pointer items-center gap-3 rounded px-2 py-1.5 text-sm transition-colors hover:bg-surface-muted">
-                            <input
-                              type="checkbox"
-                              checked={selectedIds.has(ex.id)}
-                              onChange={() => toggleExercise(ex)}
-                              className="h-4 w-4 rounded border-border text-primary focus:ring-primary"
-                            />
-                            <span className="text-foreground">{ex.name}</span>
-                          </label>
-                        </li>
-                      ))}
+                      {exs.map((ex) => {
+                        const inDay = isAlreadyInDay(ex);
+                        return (
+                          <li key={ex.id}>
+                            <label
+                              className={`flex items-center gap-3 rounded px-2 py-1.5 text-sm transition-colors ${
+                                inDay
+                                  ? "cursor-not-allowed opacity-60"
+                                  : "cursor-pointer hover:bg-surface-muted"
+                              }`}
+                            >
+                              <input
+                                type="checkbox"
+                                checked={selectedIds.has(ex.id)}
+                                onChange={() => toggleExercise(ex)}
+                                disabled={inDay}
+                                className="h-4 w-4 rounded border-border text-primary focus:ring-primary disabled:cursor-not-allowed"
+                              />
+                              <span className="text-foreground">
+                                {ex.name}
+                                {inDay && (
+                                  <span className="ml-2 text-xs text-muted-foreground">
+                                    (already added)
+                                  </span>
+                                )}
+                              </span>
+                            </label>
+                          </li>
+                        );
+                      })}
                     </ul>
                   </div>
                 ))}

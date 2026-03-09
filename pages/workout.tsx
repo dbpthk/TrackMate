@@ -209,6 +209,13 @@ export default function WorkoutPage() {
             dayName={addModalDay.dayName}
             workoutDayId={addModalDay.id}
             dayMuscleGroups={addModalDay.muscleGroups ?? []}
+            existingExercises={addModalDay.workoutDayExercises.map((we) => ({
+              id: we.exerciseId,
+              name: we.exercise.name,
+              muscleGroup: we.exercise.muscleGroup,
+              sets: we.sets,
+              reps: we.reps,
+            }))}
             onSave={fetchSplit}
           />
         )}
