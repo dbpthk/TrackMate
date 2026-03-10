@@ -17,6 +17,7 @@ export function SignInForm() {
   const [showVerifyCode, setShowVerifyCode] = useState(false);
   const [verifyLoading, setVerifyLoading] = useState(false);
   const [resendLoading, setResendLoading] = useState(false);
+  const [hasSentCode, setHasSentCode] = useState(false);
 
   useEffect(() => {
     const verified = searchParams.get("verified");
@@ -41,12 +42,12 @@ export function SignInForm() {
         redirect: false,
       });
       if (res?.error) {
-        setError(
-          res.error === "VerificationRequired"
-            ? "Please verify your email before signing in, or check your email for verification code."
-            : "Invalid email or password"
-        );
-        if (res.error === "VerificationRequired") setShowVerifyCode(true);
+        if (res.error === "VerificationRequired") {
+          setError("");
+          setShowVerifyCode(true);
+        } else {
+          setError("Invalid email or password");
+        }
         return;
       }
       router.push("/profile");
@@ -109,6 +110,7 @@ export function SignInForm() {
         return;
       }
       setSuccess("Verification code sent. Check your email.");
+      setHasSentCode(true);
     } catch {
       setError("Failed to resend");
     } finally {
@@ -118,12 +120,12 @@ export function SignInForm() {
 
   return (
     <main
-      className="flex min-h-screen flex-col items-center justify-center bg-background px-4"
+      className="flex min-h-screen flex-col items-center justify-center bg-background px-4 py-8 sm:px-6 sm:py-12"
       role="main"
       aria-label="Sign in page"
     >
-      <div className="w-full max-w-sm">
-        <h1 className="mb-6 text-2xl font-semibold text-foreground">
+      <div className="w-full max-w-sm sm:max-w-md">
+        <h1 className="mb-6 text-2xl font-semibold text-foreground sm:text-3xl">
           Sign in
         </h1>
         <form
@@ -173,82 +175,108 @@ export function SignInForm() {
               className="w-full rounded border border-border bg-surface px-3 py-2 text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
             />
           </div>
-          {success && (
-            <p
+          {success && !showVerifyCode && (
+            <div
               id="signin-success"
               role="status"
-              className="text-sm text-green-600 dark:text-green-400"
+              className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800 dark:border-emerald-900/50 dark:bg-emerald-950/30 dark:text-emerald-200"
             >
               {success}
-            </p>
+            </div>
           )}
           {error && (
-            <p
+            <div
               id="signin-error"
               role="alert"
-              className="text-sm text-red-600 dark:text-red-400"
+              className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-200"
             >
               {error}
-            </p>
+            </div>
           )}
           {showVerifyCode && (
             <div
               role="group"
               aria-label="Verification code"
-              className="rounded-lg border border-border bg-surface-muted/50 p-4"
+              className="rounded-xl border border-border bg-surface shadow-sm"
             >
-              <p className="mb-3 text-sm font-medium text-foreground">
-                Enter verification code
-              </p>
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  maxLength={6}
-                  placeholder="000000"
-                  value={code}
-                  onChange={(e) =>
-                    setCode(e.target.value.replace(/\D/g, "").slice(0, 6))
-                  }
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      e.preventDefault();
-                      handleVerifyCode(e as unknown as React.FormEvent);
-                    }
-                  }}
-                  className="flex-1 rounded border border-border bg-surface px-3 py-2 text-center font-mono tracking-widest text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-                />
-                <button
-                  type="button"
-                  onClick={(e) =>
-                    handleVerifyCode(e as unknown as React.FormEvent)
-                  }
-                  disabled={verifyLoading || code.length !== 6}
-                  className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
-                >
-                  {verifyLoading ? "Verifying…" : "Verify"}
-                </button>
+              <div className="border-b border-border bg-surface-muted/30 px-4 py-3 sm:px-5">
+                <p className="text-sm font-medium text-foreground sm:text-base">
+                  Verify your email
+                </p>
+                <p className="mt-0.5 text-sm text-muted-foreground">
+                  Please verify your email before signing in.
+                </p>
               </div>
-              <div className="mt-2 flex items-center gap-3">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowVerifyCode(false);
-                    setCode("");
-                    setError("");
-                  }}
-                  className="text-xs text-muted-foreground hover:underline"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  onClick={handleResend}
-                  disabled={resendLoading}
-                  className="text-xs text-primary hover:underline disabled:opacity-50"
-                >
-                  {resendLoading ? "Sending…" : "Resend verification code"}
-                </button>
+              <div className="space-y-4 p-4 sm:p-5">
+                {success && (
+                  <div
+                    role="status"
+                    className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800 dark:border-emerald-900/50 dark:bg-emerald-950/30 dark:text-emerald-200"
+                  >
+                    {success}
+                  </div>
+                )}
+                <div>
+                  <label
+                    htmlFor="signin-code"
+                    className="mb-1.5 block text-sm font-medium text-foreground"
+                  >
+                    Verification code
+                  </label>
+                  <div className="flex flex-col gap-2 sm:flex-row sm:gap-3">
+                    <input
+                      id="signin-code"
+                      type="text"
+                      inputMode="numeric"
+                      maxLength={6}
+                      placeholder="000000"
+                      value={code}
+                      onChange={(e) =>
+                        setCode(e.target.value.replace(/\D/g, "").slice(0, 6))
+                      }
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          handleVerifyCode(e as unknown as React.FormEvent);
+                        }
+                      }}
+                      className="min-w-0 flex-1 rounded-lg border border-border bg-surface px-3 py-2.5 text-center font-mono text-lg tracking-[0.4em] text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary sm:tracking-[0.5em]"
+                    />
+                    <button
+                      type="button"
+                      onClick={(e) =>
+                        handleVerifyCode(e as unknown as React.FormEvent)
+                      }
+                      disabled={verifyLoading || code.length !== 6}
+                      className="shrink-0 rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 disabled:opacity-50"
+                    >
+                      {verifyLoading ? "Verifying…" : "Verify"}
+                    </button>
+                  </div>
+                </div>
+                <div className="flex flex-col gap-2 pt-1 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowVerifyCode(false);
+                      setCode("");
+                      setError("");
+                      setSuccess("");
+                      setHasSentCode(false);
+                    }}
+                    className="order-2 text-center text-sm text-muted-foreground transition-colors hover:text-foreground sm:order-1 sm:text-left"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleResend}
+                    disabled={resendLoading}
+                    className="order-1 text-center text-sm font-medium text-primary transition-colors hover:text-primary/80 disabled:opacity-50 sm:order-2 sm:text-right"
+                  >
+                    {resendLoading ? "Sending…" : hasSentCode ? "Resend verification code" : "Send verification code"}
+                  </button>
+                </div>
               </div>
             </div>
           )}

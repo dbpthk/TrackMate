@@ -17,6 +17,7 @@ export function SignUpForm() {
   const [signupSuccess, setSignupSuccess] = useState(false);
   const [resendLoading, setResendLoading] = useState(false);
   const [verifyLoading, setVerifyLoading] = useState(false);
+  const [hasSentCode, setHasSentCode] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -92,6 +93,7 @@ export function SignUpForm() {
         return;
       }
       setResendSuccess(true);
+      setHasSentCode(true);
     } catch {
       setError("Failed to resend");
     } finally {
@@ -102,78 +104,88 @@ export function SignUpForm() {
   if (signupSuccess) {
     return (
       <main
-        className="flex min-h-screen flex-col items-center justify-center bg-background px-4"
+        className="flex min-h-screen flex-col items-center justify-center bg-background px-4 py-8 sm:px-6 sm:py-12"
         role="main"
         aria-label="Sign up page"
       >
-        <div className="w-full max-w-sm">
-          <h1 className="mb-2 text-2xl font-semibold text-foreground">
-            Verify your email
-          </h1>
-          <p className="mb-6 text-sm text-muted-foreground">
-            Please verify your email before signing in. Check your email for the
-            verification code.
-          </p>
-          <form
-            onSubmit={handleVerifyCode}
-            className="flex flex-col gap-4"
-            aria-label="Verification form"
-          >
-            <div>
-              <label
-                htmlFor="signup-code"
-                className="mb-1 block text-sm font-medium text-foreground"
-              >
-                Verification code
-              </label>
-              <input
-                id="signup-code"
-                type="text"
-                inputMode="numeric"
-                autoComplete="one-time-code"
-                maxLength={6}
-                placeholder="000000"
-                value={code}
-                onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
-                required
-                aria-required="true"
-                aria-invalid={!!error}
-                className="w-full rounded border border-border bg-surface px-3 py-2 text-center text-lg font-mono tracking-[0.5em] text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-              />
-              <p className="mt-1 text-xs text-muted-foreground">
-                Enter the 6-digit code sent to {email}
+        <div className="w-full max-w-sm sm:max-w-md">
+          <div className="rounded-xl border border-border bg-surface shadow-sm">
+            <div className="border-b border-border bg-surface-muted/30 px-4 py-3 sm:px-5">
+              <h1 className="text-lg font-semibold text-foreground sm:text-xl">
+                Verify your email
+              </h1>
+              <p className="mt-0.5 text-sm text-muted-foreground">
+                Please verify your email before signing in.
               </p>
             </div>
-            {error && (
-              <p role="alert" className="text-sm text-red-600 dark:text-red-400">
-                {error}
-              </p>
-            )}
-            {resendSuccess && (
-              <p
-                role="status"
-                className="text-sm text-green-600 dark:text-green-400"
-              >
-                Verification code sent. Check your email.
-              </p>
-            )}
-            <button
-              type="submit"
-              disabled={verifyLoading || code.length !== 6}
-              aria-busy={verifyLoading}
-              className="inline-flex h-10 w-full items-center justify-center rounded-lg bg-primary px-4 font-medium text-primary-foreground shadow-sm transition-all hover:bg-primary/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:opacity-50"
+            <form
+              onSubmit={handleVerifyCode}
+              className="flex flex-col gap-4 p-4 sm:p-5"
+              aria-label="Verification form"
             >
-              {verifyLoading ? "Verifying…" : "Verify and sign in"}
-            </button>
-          </form>
-          <button
-            type="button"
-            onClick={handleResend}
-            disabled={resendLoading}
-            className="mt-4 w-full text-center text-sm text-primary hover:underline disabled:opacity-50"
-          >
-            {resendLoading ? "Sending…" : "Resend verification code"}
-          </button>
+              {resendSuccess && (
+                <div
+                  role="status"
+                  className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800 dark:border-emerald-900/50 dark:bg-emerald-950/30 dark:text-emerald-200"
+                >
+                  Verification code sent. Check your email.
+                </div>
+              )}
+              <div>
+                <label
+                  htmlFor="signup-code"
+                  className="mb-1.5 block text-sm font-medium text-foreground"
+                >
+                  Verification code
+                </label>
+                <input
+                  id="signup-code"
+                  type="text"
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  maxLength={6}
+                  placeholder="000000"
+                  value={code}
+                  onChange={(e) =>
+                    setCode(e.target.value.replace(/\D/g, "").slice(0, 6))
+                  }
+                  required
+                  aria-required="true"
+                  aria-invalid={!!error}
+                  className="w-full min-w-0 rounded-lg border border-border bg-surface px-3 py-2.5 text-center text-lg font-mono tracking-[0.4em] text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary sm:tracking-[0.5em]"
+                />
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Enter the 6-digit code
+                </p>
+              </div>
+              {error && (
+                <div
+                  role="alert"
+                  className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-200"
+                >
+                  {error}
+                </div>
+              )}
+              <button
+                type="submit"
+                disabled={verifyLoading || code.length !== 6}
+                aria-busy={verifyLoading}
+                className="inline-flex h-10 w-full items-center justify-center rounded-lg bg-primary px-4 font-medium text-primary-foreground shadow-sm transition-all hover:bg-primary/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:opacity-50"
+              >
+                {verifyLoading ? "Verifying…" : "Verify and sign in"}
+              </button>
+            </form>
+            <div className="border-t border-border px-4 py-3 sm:px-5">
+              <button
+                type="button"
+                onClick={handleResend}
+                disabled={resendLoading}
+                className="w-full text-center text-sm font-medium text-primary transition-colors hover:text-primary/80 disabled:opacity-50"
+              >
+                {resendLoading ? "Sending…" : hasSentCode ? "Resend verification code" : "Send verification code"}
+              </button>
+            </div>
+          </div>
           <p className="mt-4 text-center text-sm text-muted-foreground">
             <Link href="/auth/signin" className="text-primary hover:underline">
               Back to sign in
@@ -186,12 +198,12 @@ export function SignUpForm() {
 
   return (
     <main
-      className="flex min-h-screen flex-col items-center justify-center bg-background px-4"
+      className="flex min-h-screen flex-col items-center justify-center bg-background px-4 py-8 sm:px-6 sm:py-12"
       role="main"
       aria-label="Sign up page"
     >
-      <div className="w-full max-w-sm">
-        <h1 className="mb-6 text-2xl font-semibold text-foreground">
+      <div className="w-full max-w-sm sm:max-w-md">
+        <h1 className="mb-6 text-2xl font-semibold text-foreground sm:text-3xl">
           Sign up
         </h1>
         <form
@@ -266,13 +278,13 @@ export function SignUpForm() {
             </p>
           </div>
           {error && (
-            <p
+            <div
               id="signup-error"
               role="alert"
-              className="text-sm text-red-600 dark:text-red-400"
+              className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-200"
             >
               {error}
-            </p>
+            </div>
           )}
           <button
             type="submit"
