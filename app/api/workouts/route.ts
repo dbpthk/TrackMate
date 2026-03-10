@@ -7,6 +7,7 @@ import {
   getWorkoutByUserIdDateType,
   getExercisesByWorkoutId,
   deduplicateWorkoutsForUser,
+  deleteExercisesByWorkoutId,
 } from "@/lib/db/queries";
 import { sanitizeInput, sanitizeInt } from "@/utils/sanitize";
 
@@ -42,6 +43,8 @@ export async function POST(req: NextRequest) {
     let workout = await getWorkoutByUserIdDateType(userId, date, typeStr);
     if (!workout) {
       workout = await createWorkout({ userId, date, type: typeStr });
+    } else {
+      await deleteExercisesByWorkoutId(workout.id);
     }
     const exercises = Array.isArray(exercisesInput) ? exercisesInput : [];
     for (const ex of exercises) {

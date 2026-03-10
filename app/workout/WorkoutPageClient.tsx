@@ -72,6 +72,15 @@ function workoutsForDay(
   );
 }
 
+function getTodayWorkoutForDay(
+  workouts: LoggedWorkout[],
+  dayName: string,
+  date: string
+): LoggedWorkout | undefined {
+  const forDay = workoutsForDay(workouts, dayName);
+  return forDay.find((w) => w.date === date);
+}
+
 export function WorkoutPageClient() {
   const [addModalDay, setAddModalDay] = useState<WorkoutDay | null>(null);
   const [logModalDay, setLogModalDay] = useState<WorkoutDay | null>(null);
@@ -217,6 +226,11 @@ export function WorkoutPageClient() {
             reps: we.reps ?? undefined,
           }))}
           date={getTodayDate()}
+          existingWorkout={getTodayWorkoutForDay(
+            workouts,
+            logModalDay.dayName,
+            getTodayDate()
+          )}
           onSave={handleLogSave}
         />
       )}

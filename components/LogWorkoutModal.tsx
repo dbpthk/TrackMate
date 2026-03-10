@@ -20,12 +20,22 @@ export type LogEntry = {
   weight: number | null;
 };
 
+type ExistingExerciseLog = {
+  id: number;
+  name: string;
+  sets: number | null;
+  reps: number | null;
+  weight: number | null;
+};
+
 type LogWorkoutModalProps = {
   isOpen: boolean;
   onClose: () => void;
   dayName: string;
   exercises: LogExercise[];
   date: string;
+  /** Existing workout for this date (to pre-fill and override) */
+  existingWorkout?: { exercises: ExistingExerciseLog[] } | null;
   onSave: () => void;
 };
 
@@ -35,6 +45,7 @@ export function LogWorkoutModal({
   dayName,
   exercises,
   date,
+  existingWorkout,
   onSave,
 }: LogWorkoutModalProps) {
   const [entries, setEntries] = useState<LogEntry[]>([]);
@@ -43,18 +54,32 @@ export function LogWorkoutModal({
 
   useEffect(() => {
     if (isOpen && exercises.length > 0) {
+      const existingByName = new Map(
+        (existingWorkout?.exercises ?? []).map((e) => [
+          e.name.trim().toLowerCase(),
+          e,
+        ])
+      );
       setEntries(
-        exercises.map((ex) => ({
-          exerciseId: ex.id,
-          name: ex.name,
-          sets: ex.sets ?? null,
-          reps: ex.reps ? parseInt(ex.reps, 10) || null : null,
-          weight: null,
-        }))
+        exercises.map((ex) => {
+          const existing = existingByName.get(ex.name.trim().toLowerCase());
+          return {
+            exerciseId: ex.id,
+            name: ex.name,
+            sets: existing?.sets ?? ex.sets ?? null,
+            reps:
+              existing?.reps != null
+                ? existing.reps
+                : ex.reps != null && ex.reps !== ""
+                  ? parseInt(String(ex.reps), 10) || null
+                  : null,
+            weight: existing?.weight ?? null,
+          };
+        })
       );
       setError(null);
     }
-  }, [isOpen, exercises]);
+  }, [isOpen, exercises, existingWorkout]);
 
   const updateEntry = (idx: number, field: keyof LogEntry, value: number | null) => {
     setEntries((prev) => {
@@ -149,7 +174,7 @@ export function LogWorkoutModal({
                         onChange={(e) =>
                           updateEntry(idx, "sets", e.target.value === "" ? null : parseInt(e.target.value, 10))
                         }
-                        className="mt-0.5 w-full rounded border border-border bg-background px-2 py-1.5 text-sm"
+                        className="mt-0.5 w-full rounded border border-border bg-background px-2 py-1.5 text-base"
                       />
                     </div>
                     <div>
@@ -162,7 +187,7 @@ export function LogWorkoutModal({
                         onChange={(e) =>
                           updateEntry(idx, "reps", e.target.value === "" ? null : parseInt(e.target.value, 10))
                         }
-                        className="mt-0.5 w-full rounded border border-border bg-background px-2 py-1.5 text-sm"
+                        className="mt-0.5 w-full rounded border border-border bg-background px-2 py-1.5 text-base"
                       />
                     </div>
                     <div>
@@ -176,7 +201,7 @@ export function LogWorkoutModal({
                         onChange={(e) =>
                           updateEntry(idx, "weight", e.target.value === "" ? null : parseFloat(e.target.value))
                         }
-                        className="mt-0.5 w-full rounded border border-border bg-background px-2 py-1.5 text-sm"
+                        className="mt-0.5 w-full rounded border border-border bg-background px-2 py-1.5 text-base"
                       />
                     </div>
                   </div>

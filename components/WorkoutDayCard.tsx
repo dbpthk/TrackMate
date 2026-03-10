@@ -65,6 +65,22 @@ export function WorkoutDayCard({
     return Object.entries(map).sort(([a], [b]) => a.localeCompare(b));
   }, [exercises]);
 
+  const weightLogsToShow = useMemo(() => {
+    const today = new Date().toISOString().slice(0, 10);
+    const withWeight = weightLogs.filter((log) =>
+      log.exercises.some((e) => e.weight != null && e.weight > 0)
+    );
+    const sorted = [...withWeight].sort(
+      (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+    );
+    const todayLog = sorted.find((log) => log.date === today);
+    const oldLog = sorted.find((log) => log.date !== today);
+    const result: WeightLogEntry[] = [];
+    if (todayLog) result.push(todayLog);
+    if (oldLog) result.push(oldLog);
+    return result;
+  }, [weightLogs]);
+
   return (
     <Card className="shadow-sm">
       <CardHeader className="flex flex-row items-center justify-between gap-4">
@@ -111,53 +127,34 @@ export function WorkoutDayCard({
             ))}
           </div>
         )}
-        {weightLogs.length > 0 && (
+        {weightLogsToShow.length > 0 && (
           <div className="space-y-2">
             <span className="text-xs font-medium text-muted-foreground">
               Weight logs
             </span>
             <ul className="space-y-2" role="list">
-              {weightLogs.map((log) => (
-                <li
-                  key={log.id}
-                  className="rounded-lg border border-border bg-surface-muted/50 px-3 py-2 text-sm"
-                >
-                  <span className="font-medium text-foreground">
-                    {formatDate(log.date)}
-                  </span>
-                  {log.exercises.some(
-                    (e) =>
-                      e.sets != null ||
-                      e.reps != null ||
-                      (e.weight != null && e.weight > 0)
-                  ) ? (
+              {weightLogsToShow.map((log) => (
+                  <li
+                    key={log.id}
+                    className="rounded-lg border border-border bg-surface-muted/50 px-3 py-2 text-sm"
+                  >
+                    <span className="font-medium text-foreground">
+                      {formatDate(log.date)}
+                    </span>
                     <ul className="mt-1 space-y-0.5 text-muted-foreground">
                       {log.exercises
-                        .filter(
-                          (e) =>
-                            e.sets != null ||
-                            e.reps != null ||
-                            (e.weight != null && e.weight > 0)
-                        )
+                        .filter((e) => e.weight != null && e.weight > 0)
                         .map((ex) => (
                           <li key={ex.id}>
                             {ex.name}
                             <span className="ml-2">
-                              — {ex.sets ?? "?"}×{ex.reps ?? "?"}
-                              {ex.weight != null && ex.weight > 0
-                                ? ` @ ${ex.weight} kg`
-                                : ""}
+                              — {ex.sets ?? "?"}×{ex.reps ?? "?"} @ {ex.weight} kg
                             </span>
                           </li>
                         ))}
                     </ul>
-                  ) : (
-                    <span className="ml-2 text-muted-foreground">
-                      No exercises logged
-                    </span>
-                  )}
-                </li>
-              ))}
+                  </li>
+                ))}
             </ul>
           </div>
         )}

@@ -389,6 +389,12 @@ export async function deleteExercise(id: number): Promise<void> {
   await db.delete(exercises).where(eq(exercises.id, id));
 }
 
+export async function deleteExercisesByWorkoutId(
+  workoutId: number
+): Promise<void> {
+  await db.delete(exercises).where(eq(exercises.workoutId, workoutId));
+}
+
 export async function getExerciseHistoryByUser(
   userId: number,
   exerciseName: string
