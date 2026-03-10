@@ -40,6 +40,12 @@ export default async function BuddiesPage() {
         : String(s.sharedAt),
   }));
 
+  const followRequestsForClient = followRequests.map((r) => ({
+    ...r,
+    createdAt:
+      r.createdAt instanceof Date ? r.createdAt.toISOString() : String(r.createdAt),
+  }));
+
   const sentForClient = sentFollowRequests.map((r) => ({
     ...r,
     createdAt:
@@ -55,7 +61,7 @@ export default async function BuddiesPage() {
   return (
     <BuddiesPageClient
       initialBuddies={buddies}
-      initialFollowRequests={followRequests}
+      initialFollowRequests={followRequestsForClient}
       initialSentFollowRequests={sentForClient}
       initialFollowers={followers}
       initialSharedPRs={sharedPRsForClient}
