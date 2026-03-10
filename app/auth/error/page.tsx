@@ -10,7 +10,11 @@ export default async function AuthErrorPage({
   searchParams: Promise<{ error?: string }>;
 }) {
   const params = await searchParams;
-  const error = params.error ?? "Unknown error";
+  const errorCode = params.error ?? "Unknown error";
+  const message =
+    errorCode === "VerificationRequired"
+      ? "Please verify your email before signing in."
+      : errorCode;
 
   return (
     <main
@@ -23,7 +27,7 @@ export default async function AuthErrorPage({
           Authentication error
         </h1>
         <p className="mb-6 text-muted-foreground" role="alert">
-          {error}
+          {message}
         </p>
         <Link
           href="/auth/signin"

@@ -57,6 +57,13 @@
       "when": 1773024000000,
       "tag": "0007_buddy_requests",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1773025000000,
+      "tag": "0008_email_verification",
+      "breakpoints": true
     }
   ]
 }

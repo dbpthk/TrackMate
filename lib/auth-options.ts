@@ -12,11 +12,17 @@ export const authOptions: NextAuthOptions = {
       },
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) return null;
-        const user = await verifyCredentials(
+        const result = await verifyCredentials(
           credentials.email,
           credentials.password
         );
-        return user ? { id: String(user.id), name: user.name, email: user.email } : null;
+        if (result.success) {
+          return { id: String(result.user.id), name: result.user.name, email: result.user.email };
+        }
+        if (result.reason === "unverified") {
+          throw new Error("VerificationRequired");
+        }
+        return null;
       },
     }),
   ],
