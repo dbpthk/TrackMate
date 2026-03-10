@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { MUSCLE_GROUPS } from "@/drizzle/schema";
 
 const MUSCLE_GROUP_LABELS: Record<string, string> = {
@@ -27,18 +28,20 @@ export function DayMuscleGroupSelector({
   muscleGroups,
   onSave,
 }: DayMuscleGroupSelectorProps) {
-  const selected = new Set(muscleGroups);
+  const [selected, setSelected] = useState<Set<string>>(
+    () => new Set(muscleGroups)
+  );
 
-  const toggle = (mg: string) => {
+  useEffect(() => {
+    setSelected(new Set(muscleGroups));
+  }, [muscleGroups]);
+
+  const handleChange = (mg: string) => {
     const next = new Set(selected);
     if (next.has(mg)) next.delete(mg);
     else next.add(mg);
-    return Array.from(next);
-  };
-
-  const handleChange = async (mg: string) => {
-    const next = toggle(mg);
-    await onSave(next);
+    setSelected(next);
+    void onSave(Array.from(next));
   };
 
   return (

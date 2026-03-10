@@ -123,12 +123,20 @@ export function WorkoutPageClient() {
     dayId: string,
     muscleGroups: string[]
   ) => {
+    if (!split) return;
+    const optimisticSplit: WorkoutSplit = {
+      ...split,
+      workoutDays: split.workoutDays.map((d) =>
+        d.id === dayId ? { ...d, muscleGroups } : d
+      ),
+    };
+    mutateSplit(optimisticSplit, { revalidate: false });
     const res = await fetch(`/api/workout-days/${dayId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ muscleGroups }),
     });
-    if (res.ok) revalidate();
+    void mutateSplit();
   };
 
   const handleLogSave = () => {

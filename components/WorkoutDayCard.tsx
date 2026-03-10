@@ -114,7 +114,7 @@ export function WorkoutDayCard({
                         <button
                           type="button"
                           onClick={() => onRemoveExercise(we.id)}
-                          className="rounded px-2 py-1 text-sm text-muted-foreground hover:bg-surface-muted hover:text-red-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                          className="flex min-h-[44px] min-w-[44px] shrink-0 items-center justify-center rounded text-xl text-muted-foreground hover:bg-surface-muted hover:text-red-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
                           aria-label={`Remove ${we.exercise.name}`}
                         >
                           ×

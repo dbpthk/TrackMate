@@ -143,7 +143,7 @@ export function LogWorkoutModal({
           <button
             type="button"
             onClick={onClose}
-            className="rounded p-1 text-muted-foreground hover:bg-surface-muted hover:text-foreground"
+            className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded text-xl text-muted-foreground hover:bg-surface-muted hover:text-foreground"
             aria-label="Close"
           >
             ×

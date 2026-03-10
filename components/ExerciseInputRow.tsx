@@ -100,10 +100,10 @@ export function ExerciseInputRow({
           <button
             type="button"
             onClick={onRemove}
-            className="rounded px-3 py-2 text-sm text-red-600 hover:bg-red-500/10 focus:outline-none focus:ring-2 focus:ring-red-500 dark:text-red-400"
+            className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded px-3 py-2 text-xl text-red-600 hover:bg-red-500/10 focus:outline-none focus:ring-2 focus:ring-red-500 dark:text-red-400"
             aria-label="Remove exercise"
           >
-            Remove
+            ×
           </button>
         </div>
       )}

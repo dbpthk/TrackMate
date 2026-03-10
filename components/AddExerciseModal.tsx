@@ -335,7 +335,7 @@ export function AddExerciseModal({
                         <button
                           type="button"
                           onClick={() => toggleExercise(ex)}
-                          className="shrink-0 rounded px-1.5 py-0.5 text-muted-foreground hover:bg-surface-muted hover:text-red-600"
+                          className="flex min-h-[44px] min-w-[44px] shrink-0 items-center justify-center rounded text-xl text-muted-foreground hover:bg-surface-muted hover:text-red-600"
                           aria-label={`Remove ${ex.name}`}
                         >
                           ×
