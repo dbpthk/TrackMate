@@ -1,10 +1,14 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
+import useSWR from "swr";
 import { WorkoutDayCard } from "@/components/WorkoutDayCard";
 import { AddExerciseModal } from "@/components/AddExerciseModal";
 import { DayMuscleGroupSelector } from "@/components/DayMuscleGroupSelector";
 import { LogWorkoutModal } from "@/components/LogWorkoutModal";
+
+const fetcher = (url: string) =>
+  fetch(url).then((r) => (r.ok ? r.json() : null));
 
 type WorkoutDayExerciseWithExercise = {
   id: string;
@@ -69,33 +73,32 @@ function workoutsForDay(
 }
 
 export function WorkoutPageClient() {
-  const [split, setSplit] = useState<WorkoutSplit | null>(null);
-  const [workouts, setWorkouts] = useState<LoggedWorkout[]>([]);
-  const [loading, setLoading] = useState(true);
   const [addModalDay, setAddModalDay] = useState<WorkoutDay | null>(null);
   const [logModalDay, setLogModalDay] = useState<WorkoutDay | null>(null);
 
-  const fetchSplit = async () => {
-    const res = await fetch("/api/workout-split");
-    if (res.ok) {
-      const data = await res.json();
-      setSplit(data);
-    }
-  };
+  const {
+    data: split,
+    mutate: mutateSplit,
+    isLoading: splitLoading,
+  } = useSWR<WorkoutSplit | null>("/api/workout-split", fetcher, {
+    revalidateOnFocus: false,
+    dedupingInterval: 60000,
+  });
+  const {
+    data: workouts = [],
+    mutate: mutateWorkouts,
+    isLoading: workoutsLoading,
+  } = useSWR<LoggedWorkout[]>("/api/workouts", fetcher, {
+    revalidateOnFocus: false,
+    dedupingInterval: 60000,
+  });
 
-  const fetchWorkouts = async () => {
-    const res = await fetch("/api/workouts");
-    if (res.ok) {
-      const data = await res.json();
-      setWorkouts(data);
-    }
-  };
+  const loading = splitLoading || workoutsLoading;
 
-  useEffect(() => {
-    Promise.all([fetchSplit(), fetchWorkouts()]).finally(() =>
-      setLoading(false)
-    );
-  }, []);
+  const revalidate = () => {
+    void mutateSplit();
+    void mutateWorkouts();
+  };
 
   const handleRemoveExercise = async (id: string) => {
     const res = await fetch(
@@ -104,9 +107,7 @@ export function WorkoutPageClient() {
         method: "DELETE",
       }
     );
-    if (res.ok) {
-      await Promise.all([fetchSplit(), fetchWorkouts()]);
-    }
+    if (res.ok) revalidate();
   };
 
   const handleUpdateMuscleGroups = async (
@@ -118,14 +119,11 @@ export function WorkoutPageClient() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ muscleGroups }),
     });
-    if (res.ok) {
-      await Promise.all([fetchSplit(), fetchWorkouts()]);
-    }
+    if (res.ok) revalidate();
   };
 
   const handleLogSave = () => {
-    fetchSplit();
-    fetchWorkouts();
+    revalidate();
   };
 
   return (
@@ -203,7 +201,7 @@ export function WorkoutPageClient() {
             sets: we.sets,
             reps: we.reps,
           }))}
-          onSave={fetchSplit}
+          onSave={() => void mutateSplit()}
         />
       )}
       {logModalDay && (

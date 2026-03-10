@@ -205,6 +205,7 @@ export function AddExerciseModal({
       isOpen={isOpen}
       onClose={onClose}
       title={`Add Exercise — ${dayName}`}
+      size="large"
       aria-describedby={error ? "add-exercise-error" : undefined}
     >
       <form onSubmit={handleSubmit} className="space-y-4">
@@ -292,9 +293,9 @@ export function AddExerciseModal({
                                 checked={selectedIds.has(ex.id)}
                                 onChange={() => toggleExercise(ex)}
                                 disabled={inDay}
-                                className="h-4 w-4 rounded border-border text-primary focus:ring-primary disabled:cursor-not-allowed"
+                                className="h-4 w-4 shrink-0 rounded border-border text-primary focus:ring-primary disabled:cursor-not-allowed"
                               />
-                              <span className="text-foreground">
+                              <span className="min-w-0 flex-1 text-foreground break-words">
                                 {ex.name}
                                 {inDay && (
                                   <span className="ml-2 text-xs text-muted-foreground">
@@ -328,13 +329,13 @@ export function AddExerciseModal({
                     {exs.map((ex) => (
                       <li
                         key={ex.id}
-                        className="flex items-center justify-between text-sm text-foreground"
+                        className="flex items-center justify-between gap-2 text-sm text-foreground"
                       >
-                        {ex.name}
+                        <span className="min-w-0 flex-1 break-words">{ex.name}</span>
                         <button
                           type="button"
                           onClick={() => toggleExercise(ex)}
-                          className="rounded px-1.5 text-muted-foreground hover:bg-surface-muted hover:text-red-600"
+                          className="shrink-0 rounded px-1.5 py-0.5 text-muted-foreground hover:bg-surface-muted hover:text-red-600"
                           aria-label={`Remove ${ex.name}`}
                         >
                           ×
@@ -376,7 +377,7 @@ export function AddExerciseModal({
           </p>
         )}
 
-        <div className="flex gap-3">
+        <div className="flex flex-wrap gap-3">
           <Button
             type="submit"
             disabled={loading || selectedExercises.length === 0}
