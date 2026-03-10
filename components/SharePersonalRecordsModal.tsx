@@ -85,7 +85,10 @@ export function SharePersonalRecordsModal({
           const data = await res.json();
           message = data.error ?? message;
         } catch {
-          message = res.status === 404 ? "Share API not found" : `Failed to share (${res.status})`;
+          message =
+            res.status === 404
+              ? "Share API not found"
+              : `Failed to share (${res.status})`;
         }
         throw new Error(message);
       }
@@ -99,8 +102,13 @@ export function SharePersonalRecordsModal({
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Share Personal Records">
-      <div className="space-y-4">
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      title="Share Personal Records"
+      size="medium"
+    >
+      <div className="space-y-5">
         <p className="text-sm text-muted-foreground">
           Share your {personalRecords.length} personal record
           {personalRecords.length !== 1 ? "s" : ""} with buddies.
@@ -125,10 +133,12 @@ export function SharePersonalRecordsModal({
                 onClick={selectAll}
                 className="text-sm text-primary hover:underline"
               >
-                {selectedIds.size === buddies.length ? "Deselect all" : "Select all"}
+                {selectedIds.size === buddies.length
+                  ? "Deselect all"
+                  : "Select all"}
               </button>
             </div>
-            <ul className="max-h-48 space-y-2 overflow-y-auto rounded-lg border border-border bg-surface-muted/30 p-2">
+            <ul className="max-h-[60dvh] min-h-40 space-y-2 overflow-y-auto rounded-lg border border-border bg-surface-muted/30 p-4 sm:max-h-[50vh] sm:min-h-30">
               {buddies.map((b) => (
                 <li key={b.buddyId}>
                   <label className="flex cursor-pointer items-center gap-3 rounded px-2 py-1.5 hover:bg-surface-muted/50">
@@ -138,7 +148,9 @@ export function SharePersonalRecordsModal({
                       onChange={() => toggleBuddy(b.buddyId)}
                       className="h-4 w-4 rounded border-border text-primary focus:ring-primary"
                     />
-                    <span className="font-medium text-foreground">{b.name}</span>
+                    <span className="font-medium text-foreground">
+                      {b.name}
+                    </span>
                     <span className="text-sm text-muted-foreground">
                       {b.email}
                     </span>
@@ -155,7 +167,7 @@ export function SharePersonalRecordsModal({
           </p>
         )}
 
-        <div className="flex justify-end gap-2">
+        <div className="flex justify-end gap-3 pt-1">
           <Button variant="outline" onClick={onClose}>
             Cancel
           </Button>

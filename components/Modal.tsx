@@ -6,7 +6,7 @@ type ModalProps = {
   title: string;
   children: React.ReactNode;
   "aria-describedby"?: string;
-  size?: "default" | "large";
+  size?: "default" | "medium" | "large";
   /** Rendered in a fixed footer below scrollable content (always visible on mobile) */
   footer?: React.ReactNode;
 };
@@ -41,27 +41,30 @@ export function Modal({
   if (!isOpen) return null;
 
   const isLarge = size === "large";
+  const isMedium = size === "medium";
 
   return (
     <div
       className={`fixed inset-0 z-[100] flex justify-center bg-black/50 backdrop-blur-sm ${
-        isLarge ? "items-center p-4" : "items-end p-0 sm:items-center sm:p-4"
+        isLarge
+          ? "items-center p-4"
+          : isMedium
+            ? "items-center p-4"
+            : "items-end p-0 sm:items-center sm:p-4"
       }`}
       role="dialog"
       aria-modal="true"
       aria-labelledby="modal-title"
       aria-describedby={describedBy}
     >
-      <div
-        className="fixed inset-0"
-        aria-hidden="true"
-        onClick={onClose}
-      />
+      <div className="fixed inset-0" aria-hidden="true" onClick={onClose} />
       <div
         className={`relative z-10 flex w-full flex-col overflow-hidden rounded-lg border border-border bg-surface shadow-xl ${
           isLarge
             ? "max-h-[90vh] max-w-lg sm:min-h-[75vh] sm:max-h-[92vh] sm:max-w-2xl"
-            : "max-h-[90dvh] max-w-md rounded-t-xl border-b-0 sm:max-h-[85vh] sm:max-w-lg sm:border"
+            : isMedium
+              ? "min-h-[min(60dvh,400px)] max-h-[90dvh] w-[min(100%-2rem,32rem)] rounded-lg border sm:min-h-[min(calc(50vh+50px),410px)] sm:max-h-[min(calc(85vh+50px),92vh)] sm:w-[min(100%-2rem,36rem)]"
+              : "max-h-[90dvh] max-w-md rounded-t-xl border-b-0 sm:max-h-[85vh] sm:max-w-lg sm:border"
         }`}
         onClick={(e) => e.stopPropagation()}
       >
@@ -83,10 +86,12 @@ export function Modal({
         </div>
         <div
           className={`min-h-0 flex-1 basis-0 overflow-y-auto overscroll-contain px-4 py-4 text-foreground sm:px-6 sm:pt-4 ${
-            isLarge ? "max-h-[60vh] sm:max-h-none" : ""
-          }`}
+            isLarge ? "max-h-[75vh] sm:max-h-none" : ""
+          } ${isMedium ? "min-h-[200px]" : ""}`}
           style={{
-            paddingBottom: footer ? undefined : "max(2rem, calc(env(safe-area-inset-bottom) + 1rem))",
+            paddingBottom: footer
+              ? undefined
+              : "max(2rem, calc(env(safe-area-inset-bottom) + 1rem))",
             WebkitOverflowScrolling: "touch",
             touchAction: "pan-y",
           }}
@@ -97,7 +102,8 @@ export function Modal({
           <div
             className="flex shrink-0 flex-wrap justify-end gap-3 border-t border-border bg-surface px-4 py-3 sm:px-6"
             style={{
-              paddingBottom: "max(0.75rem, calc(env(safe-area-inset-bottom) + 0.5rem))",
+              paddingBottom:
+                "max(0.75rem, calc(env(safe-area-inset-bottom) + 0.5rem))",
             }}
           >
             {footer}
