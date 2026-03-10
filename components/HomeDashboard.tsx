@@ -184,11 +184,15 @@ export function HomeDashboard({
                         <input
                           type="checkbox"
                           checked={true}
-                          onChange={async () => {
-                            await fetch(`/api/workouts/${todayWorkout.id}`, {
-                              method: "DELETE",
-                            });
-                            await fetchWorkouts();
+                          onChange={() => {
+                            setTodayWorkout(null);
+                            setWorkouts((prev) =>
+                              prev.filter((w) => w.date !== todayDate)
+                            );
+                            void fetch(
+                              `/api/workouts/${todayWorkout.id}`,
+                              { method: "DELETE" }
+                            ).then(() => void fetchWorkouts());
                           }}
                           className="h-5 w-5 rounded border-border text-primary focus:ring-primary"
                           aria-label="Undo — mark as not completed"
@@ -202,18 +206,41 @@ export function HomeDashboard({
                         <input
                           type="checkbox"
                           checked={false}
-                          onChange={async () => {
-                            const res = await fetch("/api/workouts", {
+                          onChange={() => {
+                            const optimistic: WorkoutWithExercises = {
+                              id: -1,
+                              userId: 0,
+                              date: todayDate,
+                              type: todaysFocus,
+                              exercises: [],
+                            };
+                            setTodayWorkout(optimistic);
+                            setWorkouts((prev) => {
+                              const filtered = prev.filter(
+                                (w) => w.date !== todayDate
+                              );
+                              return [...filtered, optimistic].sort(
+                                (a, b) =>
+                                  new Date(a.date).getTime() -
+                                  new Date(b.date).getTime()
+                              );
+                            });
+                            void fetch("/api/workouts", {
                               method: "POST",
                               headers: { "Content-Type": "application/json" },
                               body: JSON.stringify({
                                 date: todayDate,
                                 type: todaysFocus,
                               }),
+                            }).then((res) => {
+                              if (res.ok) void fetchWorkouts();
+                              else {
+                                setTodayWorkout(null);
+                                setWorkouts((prev) =>
+                                  prev.filter((w) => w.date !== todayDate)
+                                );
+                              }
                             });
-                            if (res.ok) {
-                              await fetchWorkouts();
-                            }
                           }}
                           className="h-5 w-5 rounded border-border text-primary focus:ring-primary"
                           aria-label="Mark today's session as completed"

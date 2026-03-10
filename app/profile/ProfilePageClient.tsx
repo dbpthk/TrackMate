@@ -1,9 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ProfileForm, type ProfileFormValues } from "@/components/ProfileForm";
+import { SignOutButton } from "@/components/SignOutButton";
 import { ProfileView } from "@/components/ProfileView";
 import { normalizeProfileSplit } from "@/lib/workout-split-map";
 
@@ -92,12 +92,9 @@ export function ProfilePageClient({ user }: ProfilePageClientProps) {
         )}
 
         <p className="border-t border-border pt-4">
-          <Link
-            href="/api/auth/signout"
-            className="text-sm text-muted-foreground underline decoration-muted-foreground/40 underline-offset-2 transition-colors hover:text-foreground hover:decoration-foreground/60 focus:outline-none focus-visible:rounded focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
-          >
+          <SignOutButton className="text-sm text-muted-foreground underline decoration-muted-foreground/40 underline-offset-2 transition-colors hover:text-foreground hover:decoration-foreground/60 focus:outline-none focus-visible:rounded focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2">
             Sign out
-          </Link>
+          </SignOutButton>
         </p>
       </div>
     </main>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { BuddyList, type Buddy } from "@/components/BuddyList";
 import {
   FollowRequestsSection,
@@ -11,50 +11,39 @@ import {
   type SharedPR,
 } from "@/components/SharedPersonalRecordsFeed";
 
-export function BuddiesPageClient() {
-  const [buddies, setBuddies] = useState<Buddy[]>([]);
-  const [followRequests, setFollowRequests] = useState<FollowRequest[]>([]);
-  const [sharedPRs, setSharedPRs] = useState<SharedPR[]>([]);
-  const [loading, setLoading] = useState(true);
+type BuddiesPageClientProps = {
+  initialBuddies: Buddy[];
+  initialFollowRequests: FollowRequest[];
+  initialSharedPRs: SharedPR[];
+};
+
+export function BuddiesPageClient({
+  initialBuddies,
+  initialFollowRequests,
+  initialSharedPRs,
+}: BuddiesPageClientProps) {
+  const [buddies, setBuddies] = useState<Buddy[]>(initialBuddies);
+  const [followRequests, setFollowRequests] =
+    useState<FollowRequest[]>(initialFollowRequests);
+  const [sharedPRs, setSharedPRs] = useState<SharedPR[]>(initialSharedPRs);
   const [loadingRequestId, setLoadingRequestId] = useState<number | null>(null);
 
-  const fetchBuddies = async () => {
-    const res = await fetch("/api/buddies");
-    if (res.ok) {
-      const data = await res.json();
-      setBuddies(data);
-    }
-  };
-
-  const fetchFollowRequests = async () => {
-    const res = await fetch("/api/buddies/requests");
-    if (res.ok) {
-      const data = await res.json();
+  const load = async () => {
+    const [buddiesRes, requestsRes, prsRes] = await Promise.all([
+      fetch("/api/buddies"),
+      fetch("/api/buddies/requests"),
+      fetch("/api/share/personal-records"),
+    ]);
+    if (buddiesRes.ok) setBuddies(await buddiesRes.json());
+    if (requestsRes.ok) {
+      const data = await requestsRes.json();
       setFollowRequests(Array.isArray(data) ? data : []);
     }
-  };
-
-  const fetchSharedPRs = async () => {
-    const res = await fetch("/api/share/personal-records");
-    if (res.ok) {
-      const data = await res.json();
+    if (prsRes.ok) {
+      const data = await prsRes.json();
       setSharedPRs(Array.isArray(data) ? data : []);
     }
   };
-
-  const load = async () => {
-    setLoading(true);
-    await Promise.all([
-      fetchBuddies(),
-      fetchFollowRequests(),
-      fetchSharedPRs(),
-    ]);
-    setLoading(false);
-  };
-
-  useEffect(() => {
-    load();
-  }, []);
 
   const handleFollow = async (email: string) => {
     const res = await fetch("/api/buddies", {
@@ -118,12 +107,7 @@ export function BuddiesPageClient() {
           </h1>
         </div>
 
-        {loading ? (
-          <p className="text-muted-foreground" role="status">
-            Loading…
-          </p>
-        ) : (
-          <div className="space-y-8">
+        <div className="space-y-8">
             <FollowRequestsSection
               requests={followRequests}
               onAccept={handleAcceptRequest}
@@ -137,7 +121,6 @@ export function BuddiesPageClient() {
             />
             <SharedPersonalRecordsFeed shared={sharedPRs} />
           </div>
-        )}
       </div>
     </main>
   );

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { usePathname } from "next/navigation";
 import { ThemeToggle } from "./ThemeToggle";
+import { SignOutButton } from "./SignOutButton";
 
 const navLinksSignedIn = [
   { href: "/", label: "Home" },
@@ -94,9 +95,7 @@ export function Navbar() {
             </div>
           )}
           {isSignedIn && (
-            <Link href="/api/auth/signout" className={navLinkClass}>
-              Sign out
-            </Link>
+            <SignOutButton className={navLinkClass}>Sign out</SignOutButton>
           )}
         </nav>
 
@@ -189,13 +188,13 @@ export function Navbar() {
             </div>
           )}
           {isSignedIn && (
-            <Link
-              href="/api/auth/signout"
-              onClick={handleNavClick}
+            <SignOutButton
               className={navLinkClass}
+              onOpen={handleNavClick}
+              onClose={handleNavClick}
             >
               Sign out
-            </Link>
+            </SignOutButton>
           )}
         </nav>
       </div>

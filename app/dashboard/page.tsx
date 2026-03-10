@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { unstable_cache } from "next/cache";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth-options";
 import {
@@ -19,25 +20,21 @@ export const metadata = {
   title: "Stats | TrackMate",
 };
 
-export default async function DashboardPage() {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.id) {
-    redirect("/auth/signin");
-  }
-  const userId = Number(session.user.id);
-
-  const [
-    totalWorkouts,
-    streak,
-    totalVolume,
-    personalRecords,
-    muscleDistribution,
-    strengthProgress,
-    workoutFrequency,
-    recentWorkouts,
-    volumeByDate,
-    volumeByWeek,
-  ] = await Promise.all([
+async function getDashboardData(userId: number) {
+  return unstable_cache(
+    async () => {
+      const [
+        totalWorkouts,
+        streak,
+        totalVolume,
+        personalRecords,
+        muscleDistribution,
+        strengthProgress,
+        workoutFrequency,
+        recentWorkouts,
+        volumeByDate,
+        volumeByWeek,
+      ] = await Promise.all([
     getTotalWorkoutsCount(userId),
     getWorkoutStreak(userId),
     getTotalVolume(userId),
@@ -49,6 +46,43 @@ export default async function DashboardPage() {
     getVolumeByDate(userId),
     getVolumeByWeek(userId),
   ]);
+      return {
+        totalWorkouts,
+        streak,
+        totalVolume,
+        personalRecords,
+        muscleDistribution,
+        strengthProgress,
+        workoutFrequency,
+        recentWorkouts,
+        volumeByDate,
+        volumeByWeek,
+      };
+    },
+    [`dashboard-${userId}`],
+    { revalidate: 60 }
+  )();
+}
+
+export default async function DashboardPage() {
+  const session = await getServerSession(authOptions);
+  if (!session?.user?.id) {
+    redirect("/auth/signin");
+  }
+  const userId = Number(session.user.id);
+
+  const {
+    totalWorkouts,
+    streak,
+    totalVolume,
+    personalRecords,
+    muscleDistribution,
+    strengthProgress,
+    workoutFrequency,
+    recentWorkouts,
+    volumeByDate,
+    volumeByWeek,
+  } = await getDashboardData(userId);
 
   const props = {
     totalWorkouts,

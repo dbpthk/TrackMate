@@ -109,14 +109,20 @@ export function WorkoutPageClient() {
     void mutateWorkouts();
   };
 
-  const handleRemoveExercise = async (id: string) => {
-    const res = await fetch(
+  const handleRemoveExercise = (id: string) => {
+    if (!split) return;
+    const optimisticSplit: WorkoutSplit = {
+      ...split,
+      workoutDays: split.workoutDays.map((d) => ({
+        ...d,
+        workoutDayExercises: d.workoutDayExercises.filter((we) => we.id !== id),
+      })),
+    };
+    mutateSplit(optimisticSplit, { revalidate: false });
+    void fetch(
       `/api/workout-day-exercises?id=${encodeURIComponent(id)}`,
-      {
-        method: "DELETE",
-      }
-    );
-    if (res.ok) revalidate();
+      { method: "DELETE" }
+    ).then(() => void mutateSplit());
   };
 
   const handleUpdateMuscleGroups = async (
