@@ -25,10 +25,18 @@ export function sanitizeInt(val: unknown): number | undefined {
   return Number.isFinite(n) && n >= 0 ? n : undefined;
 }
 
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+/** Check if email format is valid */
+export function isValidEmail(val: unknown): boolean {
+  const s = String(val ?? "").trim().toLowerCase().slice(0, 255);
+  return EMAIL_REGEX.test(s);
+}
+
 /** Email: trim, lowercase, basic format check */
 export function sanitizeEmail(val: unknown): string {
   const s = String(val ?? "").trim().toLowerCase().slice(0, 255);
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s) ? s : "";
+  return EMAIL_REGEX.test(s) ? s : "";
 }
 
 /** Date string YYYY-MM-DD only */

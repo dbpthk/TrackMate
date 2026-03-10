@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { signIn } from "next-auth/react";
 import Link from "next/link";
+import { isValidEmail } from "@/utils/sanitize";
 
 export function SignUpForm() {
   const router = useRouter();
@@ -22,6 +23,10 @@ export function SignUpForm() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+    if (!isValidEmail(email)) {
+      setError("Please enter a valid email address");
+      return;
+    }
     setLoading(true);
     try {
       const res = await fetch("/api/auth/signup", {

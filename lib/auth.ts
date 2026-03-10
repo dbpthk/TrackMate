@@ -3,6 +3,7 @@ import { users } from "@/drizzle/schema";
 import { db } from "./db";
 import bcrypt from "bcryptjs";
 import { sendVerificationEmail } from "./email";
+import { isValidEmail } from "@/utils/sanitize";
 import { eq } from "drizzle-orm";
 
 const SALT_ROUNDS = 10;
@@ -28,7 +29,7 @@ export async function signup(input: SignupInput) {
 
   if (!name || !email) throw new Error("Name and email required");
   if (password.length < 8) throw new Error("Password must be at least 8 characters");
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new Error("Invalid email");
+  if (!isValidEmail(email)) throw new Error("Invalid email");
 
   const existing = await getUserByEmail(email);
   if (existing) throw new Error("Email already registered");
