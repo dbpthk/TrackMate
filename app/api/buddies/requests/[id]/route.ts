@@ -3,6 +3,7 @@ import { getToken } from "next-auth/jwt";
 import {
   acceptBuddyRequest,
   rejectBuddyRequest,
+  cancelBuddyRequest,
 } from "@/lib/db/queries";
 
 export async function PATCH(
@@ -48,9 +49,22 @@ export async function PATCH(
       message: "Request rejected",
     });
   }
+  if (action === "cancel") {
+    const ok = await cancelBuddyRequest(idNum, userId);
+    if (!ok) {
+      return NextResponse.json(
+        { error: "Request not found or already handled" },
+        { status: 404 }
+      );
+    }
+    return NextResponse.json({
+      success: true,
+      message: "Request cancelled",
+    });
+  }
 
   return NextResponse.json(
-    { error: "action must be 'accept' or 'reject'" },
+    { error: "action must be 'accept', 'reject', or 'cancel'" },
     { status: 400 }
   );
 }

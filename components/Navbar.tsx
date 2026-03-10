@@ -2,10 +2,22 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import useSWR from "swr";
 import { useSession } from "next-auth/react";
 import { usePathname } from "next/navigation";
 import { ThemeToggle } from "./ThemeToggle";
 import { SignOutButton } from "./SignOutButton";
+
+const fetcher = async (url: string): Promise<unknown[]> => {
+  const res = await fetch(url);
+  if (!res.ok) return [];
+  try {
+    const data = await res.json();
+    return Array.isArray(data) ? data : [];
+  } catch {
+    return [];
+  }
+};
 
 const navLinksSignedIn = [
   { href: "/", label: "Home" },
@@ -33,6 +45,12 @@ export function Navbar() {
   const [contactOpen, setContactOpen] = useState(false);
 
   const isSignedIn = status === "authenticated" && !!session?.user;
+  const { data: followRequests = [] } = useSWR<unknown[]>(
+    isSignedIn ? "/api/buddies/requests" : null,
+    fetcher,
+    { revalidateOnFocus: true }
+  );
+  const pendingCount = Array.isArray(followRequests) ? followRequests.length : 0;
   const links = isSignedIn ? navLinksSignedIn : navLinksSignedOut;
   const currentPath = pathname ?? "/";
 
@@ -67,9 +85,17 @@ export function Navbar() {
             <Link
               key={href}
               href={href}
-              className={`${navLinkClass} ${isActive(href) ? navLinkActiveClass : ""}`}
+              className={`relative ${navLinkClass} ${isActive(href) ? navLinkActiveClass : ""}`}
             >
               {label}
+              {href === "/buddies" && pendingCount > 0 && (
+                <span
+                  className="absolute -right-0.5 -top-0.5 flex min-h-[1.25rem] min-w-[1.25rem] items-center justify-center rounded-full bg-primary px-1 text-[0.65rem] font-bold text-primary-foreground"
+                  aria-label={`${pendingCount} pending follow request${pendingCount !== 1 ? "s" : ""}`}
+                >
+                  {pendingCount > 9 ? "9+" : pendingCount}
+                </span>
+              )}
             </Link>
           ))}
           {!isSignedIn && (
@@ -154,15 +180,23 @@ export function Navbar() {
         role="navigation"
         aria-label="Mobile navigation"
       >
-        <nav className="flex flex-col gap-0.5 px-4 py-3">
+        <nav className="flex flex-col gap-0.5 px-4 py-3 text-left [&_a]:text-base [&_button]:text-base">
           {links.map(({ href, label }) => (
             <Link
               key={href}
               href={href}
               onClick={handleNavClick}
-              className={`${navLinkClass} ${isActive(href) ? navLinkActiveClass : ""}`}
+              className={`flex items-center gap-2 ${navLinkClass} ${isActive(href) ? navLinkActiveClass : ""}`}
             >
               {label}
+              {href === "/buddies" && pendingCount > 0 && (
+                <span
+                  className="flex min-h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-primary px-1 text-[0.65rem] font-bold text-primary-foreground"
+                  aria-label={`${pendingCount} pending follow request${pendingCount !== 1 ? "s" : ""}`}
+                >
+                  {pendingCount > 9 ? "9+" : pendingCount}
+                </span>
+              )}
             </Link>
           ))}
           {!isSignedIn && (

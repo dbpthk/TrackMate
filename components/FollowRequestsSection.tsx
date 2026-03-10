@@ -15,8 +15,13 @@ type FollowRequestsSectionProps = {
   loadingId: number | null;
 };
 
-function formatDate(d: string) {
-  const date = d.includes("T") ? new Date(d) : new Date(d + "T12:00:00");
+function formatDate(d: string | number | Date | null | undefined) {
+  if (d == null) return "";
+  const date = typeof d === "string"
+    ? d.includes("T")
+      ? new Date(d)
+      : new Date(d + "T12:00:00")
+    : new Date(d);
   return date.toLocaleDateString(undefined, {
     month: "short",
     day: "numeric",

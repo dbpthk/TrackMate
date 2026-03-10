@@ -458,6 +458,71 @@ export async function getBuddiesWithUsers(
   return rows;
 }
 
+export type FollowerRow = {
+  userId: number;
+  name: string;
+  email: string;
+  iFollowThem: boolean;
+};
+
+export async function getUsersWhoFollowYou(
+  userId: number
+): Promise<FollowerRow[]> {
+  const followers = await db
+    .select({
+      followerId: buddies.userId,
+      name: users.name,
+      email: users.email,
+    })
+    .from(buddies)
+    .innerJoin(users, eq(buddies.userId, users.id))
+    .where(eq(buddies.buddyId, userId));
+
+  if (followers.length === 0) return [];
+
+  const myBuddyIds = new Set(
+    (await getBuddiesByUserId(userId)).map((b) => b.buddyId)
+  );
+
+  return followers.map((f) => ({
+    userId: f.followerId,
+    name: f.name,
+    email: f.email,
+    iFollowThem: myBuddyIds.has(f.followerId),
+  }));
+}
+
+export async function followBack(
+  userId: number,
+  targetId: number
+): Promise<boolean> {
+  if (targetId === userId) return false;
+  const theyFollowMe = await db
+    .select()
+    .from(buddies)
+    .where(
+      and(
+        eq(buddies.userId, targetId),
+        eq(buddies.buddyId, userId)
+      )
+    )
+    .limit(1);
+  if (theyFollowMe.length === 0) return false;
+  const iAlreadyFollow = await db
+    .select()
+    .from(buddies)
+    .where(
+      and(
+        eq(buddies.userId, userId),
+        eq(buddies.buddyId, targetId)
+      )
+    )
+    .limit(1);
+  if (iAlreadyFollow.length > 0) return false;
+  await addBuddy({ userId, buddyId: targetId });
+  return true;
+}
+
 // --- Buddy requests (follow requests requiring confirmation) ---
 export async function createBuddyRequest(
   requesterId: number,
@@ -511,6 +576,59 @@ export async function getPendingRequestsForUser(
     )
     .orderBy(desc(buddyRequests.createdAt));
   return rows;
+}
+
+type SentRequestRow = {
+  id: number;
+  recipientId: number;
+  recipientName: string;
+  recipientEmail: string;
+  createdAt: Date;
+};
+
+export async function getPendingRequestsSentByUser(
+  requesterId: number
+): Promise<SentRequestRow[]> {
+  const rows = await db
+    .select({
+      id: buddyRequests.id,
+      recipientId: buddyRequests.recipientId,
+      recipientName: users.name,
+      recipientEmail: users.email,
+      createdAt: buddyRequests.createdAt,
+    })
+    .from(buddyRequests)
+    .innerJoin(users, eq(buddyRequests.recipientId, users.id))
+    .where(
+      and(
+        eq(buddyRequests.requesterId, requesterId),
+        eq(buddyRequests.status, "pending")
+      )
+    )
+    .orderBy(desc(buddyRequests.createdAt));
+  return rows;
+}
+
+export async function cancelBuddyRequest(
+  requestId: number,
+  requesterId: number
+): Promise<boolean> {
+  const conditions = and(
+    eq(buddyRequests.id, requestId),
+    eq(buddyRequests.requesterId, requesterId),
+    eq(buddyRequests.status, "pending")
+  );
+  const [req] = await db
+    .select()
+    .from(buddyRequests)
+    .where(conditions)
+    .limit(1);
+  if (!req) return false;
+  await db
+    .update(buddyRequests)
+    .set({ status: "rejected" })
+    .where(eq(buddyRequests.id, requestId));
+  return true;
 }
 
 export async function acceptBuddyRequest(
@@ -613,6 +731,13 @@ export async function getSharedPersonalRecordsReceived(
     })
     .from(sharedPersonalRecords)
     .innerJoin(users, eq(sharedPersonalRecords.sharerId, users.id))
+    .innerJoin(
+      buddies,
+      and(
+        eq(buddies.userId, sharedPersonalRecords.recipientId),
+        eq(buddies.buddyId, sharedPersonalRecords.sharerId)
+      )
+    )
     .where(eq(sharedPersonalRecords.recipientId, recipientId))
     .orderBy(desc(sharedPersonalRecords.sharedAt))
     .limit(limit);
@@ -623,6 +748,59 @@ export async function getSharedPersonalRecordsReceived(
     sharedAt: r.sharedAt,
     records: (r.records ?? []) as SharedPRRecord[],
   }));
+}
+
+export async function getSharedPersonalRecordsSent(
+  sharerId: number,
+  limit = 20
+): Promise<
+  Array<{
+    id: number;
+    recipientId: number;
+    recipientName: string;
+    sharedAt: Date;
+    records: SharedPRRecord[];
+  }>
+> {
+  const rows = await db
+    .select({
+      id: sharedPersonalRecords.id,
+      recipientId: sharedPersonalRecords.recipientId,
+      sharedAt: sharedPersonalRecords.sharedAt,
+      records: sharedPersonalRecords.records,
+      recipientName: users.name,
+    })
+    .from(sharedPersonalRecords)
+    .innerJoin(users, eq(sharedPersonalRecords.recipientId, users.id))
+    .where(eq(sharedPersonalRecords.sharerId, sharerId))
+    .orderBy(desc(sharedPersonalRecords.sharedAt))
+    .limit(limit);
+  return rows.map((r) => ({
+    id: r.id,
+    recipientId: r.recipientId,
+    recipientName: r.recipientName,
+    sharedAt: r.sharedAt,
+    records: (r.records ?? []) as SharedPRRecord[],
+  }));
+}
+
+export async function deleteSharedPersonalRecord(
+  id: number,
+  sharerId: number
+): Promise<boolean> {
+  const [row] = await db
+    .select()
+    .from(sharedPersonalRecords)
+    .where(
+      and(
+        eq(sharedPersonalRecords.id, id),
+        eq(sharedPersonalRecords.sharerId, sharerId)
+      )
+    )
+    .limit(1);
+  if (!row) return false;
+  await db.delete(sharedPersonalRecords).where(eq(sharedPersonalRecords.id, id));
+  return true;
 }
 
 export async function getBuddyWorkouts(
