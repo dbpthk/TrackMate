@@ -132,12 +132,12 @@ export function LogWorkoutModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+      className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 sm:items-center sm:p-4"
       role="dialog"
       aria-modal="true"
       aria-labelledby="log-workout-title"
     >
-      <Card className="max-h-[90vh] w-full max-w-lg overflow-hidden shadow-xl">
+      <Card className="max-h-[90dvh] w-full max-w-lg overflow-hidden rounded-t-xl border-b-0 shadow-xl sm:max-h-[85vh] sm:rounded-lg sm:border">
         <CardHeader className="flex flex-row items-center justify-between border-b border-border">
           <CardTitle id="log-workout-title">Log Workout — {dayName}</CardTitle>
           <button
@@ -149,7 +149,7 @@ export function LogWorkoutModal({
             ×
           </button>
         </CardHeader>
-        <CardContent className="max-h-[60vh] overflow-y-auto space-y-4 pt-4">
+        <CardContent className="max-h-[75dvh] overflow-y-auto space-y-4 pt-4 sm:max-h-[70vh]">
           <p className="text-sm text-muted-foreground">
             Enter sets, reps, and weight for each exercise. New personal records will appear on your Stats page.
           </p>

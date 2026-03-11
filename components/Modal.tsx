@@ -47,7 +47,7 @@ export function Modal({
     <div
       className={`fixed inset-0 z-[100] flex justify-center bg-black/50 backdrop-blur-sm ${
         isLarge
-          ? "items-center p-4"
+          ? "items-end p-0 sm:items-center sm:p-4"
           : isMedium
             ? "items-center p-4"
             : "items-end p-0 sm:items-center sm:p-4"
@@ -61,7 +61,7 @@ export function Modal({
       <div
         className={`relative z-10 flex w-full flex-col overflow-hidden rounded-lg border border-border bg-surface shadow-xl ${
           isLarge
-            ? "max-h-[90vh] max-w-lg sm:min-h-[75vh] sm:max-h-[92vh] sm:max-w-2xl"
+            ? "max-h-[90dvh] max-w-full rounded-t-xl border-b-0 sm:min-h-[75vh] sm:max-h-[92vh] sm:max-w-2xl sm:rounded-lg sm:border"
             : isMedium
               ? "min-h-[min(60dvh,400px)] max-h-[90dvh] w-[min(100%-2rem,32rem)] rounded-lg border sm:min-h-[min(calc(50vh+50px),410px)] sm:max-h-[min(calc(85vh+50px),92vh)] sm:w-[min(100%-2rem,36rem)]"
               : "max-h-[90dvh] max-w-md rounded-t-xl border-b-0 sm:max-h-[85vh] sm:max-w-lg sm:border"
@@ -86,7 +86,7 @@ export function Modal({
         </div>
         <div
           className={`min-h-0 flex-1 basis-0 overflow-y-auto overscroll-contain px-4 py-4 text-foreground sm:px-6 sm:pt-4 ${
-            isLarge ? "max-h-[75vh] sm:max-h-none" : ""
+            isLarge ? "max-h-[75dvh] sm:max-h-none" : ""
           } ${isMedium ? "min-h-[200px]" : ""}`}
           style={{
             paddingBottom: footer
