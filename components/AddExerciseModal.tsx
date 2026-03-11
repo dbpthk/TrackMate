@@ -221,8 +221,8 @@ export function AddExerciseModal({
                     {group}
                   </span>
                   <ul className="mt-0.5 space-y-0.5 text-sm text-foreground">
-                    {exs.map((ex) => (
-                      <li key={ex.id}>
+                    {exs.map((ex, i) => (
+                      <li key={`${ex.id}-${i}`}>
                         {ex.name}
                         {(ex.sets != null || ex.reps) && (
                           <span className="ml-2 text-muted-foreground">
@@ -277,10 +277,10 @@ export function AddExerciseModal({
                       {group}
                     </span>
                     <ul className="mt-1.5 space-y-0.5">
-                      {exs.map((ex) => {
+                      {exs.map((ex, i) => {
                         const inDay = isAlreadyInDay(ex);
                         return (
-                          <li key={ex.id}>
+                          <li key={`${ex.id}-${i}`}>
                             <label
                               className={`flex items-center gap-3 rounded px-2 py-1.5 text-sm transition-colors ${
                                 inDay
@@ -326,9 +326,9 @@ export function AddExerciseModal({
                     {group}
                   </span>
                   <ul className="mt-1 space-y-0.5">
-                    {exs.map((ex) => (
+                    {exs.map((ex, i) => (
                       <li
-                        key={ex.id}
+                        key={`${ex.id}-${i}`}
                         className="flex items-center justify-between gap-2 text-sm text-foreground"
                       >
                         <span className="min-w-0 flex-1 break-words">{ex.name}</span>

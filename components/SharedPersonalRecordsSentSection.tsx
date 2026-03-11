@@ -1,7 +1,13 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { createPortal } from "react-dom";
+import { useState } from "react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import { Card, CardHeader, CardTitle, CardContent } from "./Card";
 import { Button } from "./Button";
 
@@ -44,11 +50,6 @@ export function SharedPersonalRecordsSentSection({
   loadingId,
 }: SharedPersonalRecordsSentSectionProps) {
   const [deleteId, setDeleteId] = useState<number | null>(null);
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
 
   const handleDeleteClick = (id: number) => {
     setDeleteId(id);
@@ -60,41 +61,6 @@ export function SharedPersonalRecordsSentSection({
       setDeleteId(null);
     }
   };
-
-  const handleCancel = () => {
-    setDeleteId(null);
-  };
-
-  const modal = deleteId != null ? (
-    <div
-      className="fixed inset-0 z-[200] flex items-center justify-center p-4"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="delete-share-confirm-title"
-    >
-      <div
-        className="absolute inset-0 bg-black/50"
-        aria-hidden
-        onClick={handleCancel}
-      />
-      <div
-        className="relative z-10 mx-auto w-full max-w-sm rounded-lg border border-border bg-surface p-4 shadow-xl"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <p id="delete-share-confirm-title" className="text-foreground">
-          Are you sure you want to delete?
-        </p>
-        <div className="mt-4 flex justify-end gap-2">
-          <Button type="button" variant="outline" size="sm" onClick={handleCancel}>
-            Cancel
-          </Button>
-          <Button type="button" size="sm" onClick={handleConfirmDelete}>
-            Delete
-          </Button>
-        </div>
-      </div>
-    </div>
-  ) : null;
 
   if (shared.length === 0) return null;
 
@@ -150,7 +116,26 @@ export function SharedPersonalRecordsSentSection({
           </li>
         ))}
       </ul>
-      {mounted && modal && createPortal(modal, document.body)}
+      <Dialog open={deleteId != null} onOpenChange={(open) => !open && setDeleteId(null)}>
+        <DialogContent className="max-w-sm" showCloseButton={true}>
+          <DialogHeader>
+            <DialogTitle>Are you sure you want to delete?</DialogTitle>
+          </DialogHeader>
+          <DialogFooter className="sm:justify-end">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setDeleteId(null)}
+            >
+              Cancel
+            </Button>
+            <Button type="button" size="sm" onClick={handleConfirmDelete}>
+              Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </section>
   );
 }

@@ -1,4 +1,12 @@
-import { useEffect, useCallback } from "react";
+"use client";
+
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { cn } from "@/lib/utils";
 
 type ModalProps = {
   isOpen: boolean;
@@ -11,6 +19,15 @@ type ModalProps = {
   footer?: React.ReactNode;
 };
 
+const sizeClasses = {
+  default:
+    "top-auto bottom-0 -translate-y-0 max-h-[90dvh] max-w-md rounded-t-xl border-b-0 sm:top-1/2 sm:bottom-auto sm:-translate-y-1/2 sm:max-h-[85vh] sm:max-w-lg sm:rounded-lg sm:border",
+  medium:
+    "min-h-[min(60dvh,400px)] max-h-[90dvh] w-[min(100%-2rem,32rem)] sm:min-h-[min(calc(50vh+50px),410px)] sm:max-h-[min(calc(85vh+50px),92vh)] sm:w-[min(100%-2rem,36rem)]",
+  large:
+    "top-auto bottom-0 -translate-y-0 max-h-[90dvh] max-w-full rounded-t-xl border-b-0 sm:top-1/2 sm:bottom-auto sm:-translate-y-1/2 sm:min-h-[75vh] sm:max-h-[92vh] sm:max-w-2xl sm:rounded-lg sm:border",
+};
+
 export function Modal({
   isOpen,
   onClose,
@@ -20,74 +37,27 @@ export function Modal({
   size = "default",
   footer,
 }: ModalProps) {
-  const handleEscape = useCallback(
-    (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    },
-    [onClose]
-  );
-
-  useEffect(() => {
-    if (isOpen) {
-      document.addEventListener("keydown", handleEscape);
-      document.body.style.overflow = "hidden";
-    }
-    return () => {
-      document.removeEventListener("keydown", handleEscape);
-      document.body.style.overflow = "";
-    };
-  }, [isOpen, handleEscape]);
-
-  if (!isOpen) return null;
-
-  const isLarge = size === "large";
-  const isMedium = size === "medium";
-
   return (
-    <div
-      className={`fixed inset-0 z-[100] flex justify-center bg-black/50 backdrop-blur-sm ${
-        isLarge
-          ? "items-end p-0 sm:items-center sm:p-4"
-          : isMedium
-            ? "items-center p-4"
-            : "items-end p-0 sm:items-center sm:p-4"
-      }`}
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="modal-title"
-      aria-describedby={describedBy}
-    >
-      <div className="fixed inset-0" aria-hidden="true" onClick={onClose} />
-      <div
-        className={`relative z-10 flex w-full flex-col overflow-hidden rounded-lg border border-border bg-surface shadow-xl ${
-          isLarge
-            ? "max-h-[90dvh] max-w-full rounded-t-xl border-b-0 sm:min-h-[75vh] sm:max-h-[92vh] sm:max-w-2xl sm:rounded-lg sm:border"
-            : isMedium
-              ? "min-h-[min(60dvh,400px)] max-h-[90dvh] w-[min(100%-2rem,32rem)] rounded-lg border sm:min-h-[min(calc(50vh+50px),410px)] sm:max-h-[min(calc(85vh+50px),92vh)] sm:w-[min(100%-2rem,36rem)]"
-              : "max-h-[90dvh] max-w-md rounded-t-xl border-b-0 sm:max-h-[85vh] sm:max-w-lg sm:border"
-        }`}
-        onClick={(e) => e.stopPropagation()}
+    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent
+        aria-describedby={describedBy}
+        className={cn(
+          "flex flex-col p-0 gap-0",
+          sizeClasses[size]
+        )}
+        showCloseButton={true}
       >
-        <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-3 sm:px-6 sm:pb-4">
-          <h2
-            id="modal-title"
-            className="text-lg font-semibold text-foreground sm:text-xl"
-          >
+        <DialogHeader className="flex shrink-0 flex-row items-center justify-between gap-4 border-b border-border px-4 py-3 pr-14 sm:px-6 sm:pr-14 sm:pb-4">
+          <DialogTitle className="text-lg font-semibold text-foreground sm:text-xl">
             {title}
-          </h2>
-          <button
-            type="button"
-            onClick={onClose}
-            className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded text-xl text-muted-foreground transition-colors hover:bg-surface-muted hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-            aria-label="Close modal"
-          >
-            <span aria-hidden="true">×</span>
-          </button>
-        </div>
+          </DialogTitle>
+        </DialogHeader>
         <div
-          className={`min-h-0 flex-1 basis-0 overflow-y-auto overscroll-contain px-4 py-4 text-foreground sm:px-6 sm:pt-4 ${
-            isLarge ? "max-h-[75dvh] sm:max-h-none" : ""
-          } ${isMedium ? "min-h-[200px]" : ""}`}
+          className={cn(
+            "min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4 text-foreground sm:px-6 sm:pt-4",
+            size === "medium" && "min-h-[200px]",
+            size === "large" && "max-h-[75dvh] sm:max-h-none"
+          )}
           style={{
             paddingBottom: footer
               ? undefined
@@ -109,7 +79,7 @@ export function Modal({
             {footer}
           </div>
         )}
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }

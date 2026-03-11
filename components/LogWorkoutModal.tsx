@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Card, CardHeader, CardTitle, CardContent } from "./Card";
+import { Modal } from "./Modal";
 import { Button } from "./Button";
 
 export type LogExercise = {
@@ -128,28 +128,24 @@ export function LogWorkoutModal({
     }
   };
 
-  if (!isOpen) return null;
-
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 sm:items-center sm:p-4"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="log-workout-title"
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      title={`Log Workout — ${dayName}`}
+      size="large"
+      footer={
+        <>
+          <Button variant="outline" onClick={onClose} disabled={saving}>
+            Cancel
+          </Button>
+          <Button onClick={handleSubmit} disabled={saving || exercises.length === 0}>
+            {saving ? "Saving…" : "Save Workout"}
+          </Button>
+        </>
+      }
     >
-      <Card className="max-h-[90dvh] w-full max-w-lg overflow-hidden rounded-t-xl border-b-0 shadow-xl sm:max-h-[85vh] sm:rounded-lg sm:border">
-        <CardHeader className="flex flex-row items-center justify-between border-b border-border">
-          <CardTitle id="log-workout-title">Log Workout — {dayName}</CardTitle>
-          <button
-            type="button"
-            onClick={onClose}
-            className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded text-xl text-muted-foreground hover:bg-surface-muted hover:text-foreground"
-            aria-label="Close"
-          >
-            ×
-          </button>
-        </CardHeader>
-        <CardContent className="max-h-[75dvh] overflow-y-auto space-y-4 pt-4 sm:max-h-[70vh]">
+      <div className="space-y-4">
           <p className="text-sm text-muted-foreground">
             Enter sets, reps, and weight for each exercise. New personal records will appear on your Stats page.
           </p>
@@ -159,7 +155,7 @@ export function LogWorkoutModal({
             <div className="space-y-4">
               {entries.map((entry, idx) => (
                 <div
-                  key={entry.exerciseId}
+                  key={`${entry.exerciseId}-${idx}`}
                   className="rounded-lg border border-border bg-surface p-3"
                 >
                   <p className="mb-2 font-medium text-foreground">{entry.name}</p>
@@ -209,19 +205,10 @@ export function LogWorkoutModal({
               ))}
             </div>
           )}
-          {error && (
-            <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
-          )}
-        </CardContent>
-        <div className="flex justify-end gap-2 border-t border-border p-4">
-          <Button variant="outline" onClick={onClose} disabled={saving}>
-            Cancel
-          </Button>
-          <Button onClick={handleSubmit} disabled={saving || exercises.length === 0}>
-            {saving ? "Saving…" : "Save Workout"}
-          </Button>
-        </div>
-      </Card>
-    </div>
+        {error && (
+          <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
+        )}
+      </div>
+    </Modal>
   );
 }
