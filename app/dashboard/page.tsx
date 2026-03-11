@@ -4,7 +4,6 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth-options";
 import {
   getTotalWorkoutsCount,
-  getWorkoutStreak,
   getTotalVolume,
   getPersonalRecords,
   getMuscleDistributionFromExercises,
@@ -16,6 +15,8 @@ import {
 } from "@/lib/db/queries";
 import { DashboardClient } from "./DashboardClient";
 
+const dashboardCacheTag = (userId: number) => `dashboard-${userId}`;
+
 export const metadata = {
   title: "Stats | TrackMate",
 };
@@ -25,7 +26,6 @@ async function getDashboardData(userId: number) {
     async () => {
       const [
         totalWorkouts,
-        streak,
         totalVolume,
         personalRecords,
         muscleDistribution,
@@ -36,7 +36,6 @@ async function getDashboardData(userId: number) {
         volumeByWeek,
       ] = await Promise.all([
     getTotalWorkoutsCount(userId),
-    getWorkoutStreak(userId),
     getTotalVolume(userId),
     getPersonalRecords(userId, 15),
     getMuscleDistributionFromExercises(userId),
@@ -48,7 +47,6 @@ async function getDashboardData(userId: number) {
   ]);
       return {
         totalWorkouts,
-        streak,
         totalVolume,
         personalRecords,
         muscleDistribution,
@@ -60,7 +58,7 @@ async function getDashboardData(userId: number) {
       };
     },
     [`dashboard-${userId}`],
-    { revalidate: 60 }
+    { revalidate: 60, tags: [dashboardCacheTag(userId)] }
   )();
 }
 
@@ -73,7 +71,6 @@ export default async function DashboardPage() {
 
   const {
     totalWorkouts,
-    streak,
     totalVolume,
     personalRecords,
     muscleDistribution,
@@ -86,7 +83,6 @@ export default async function DashboardPage() {
 
   const props = {
     totalWorkouts,
-    streak,
     totalVolume,
     personalRecords,
     muscleDistribution,

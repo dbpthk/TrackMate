@@ -1,10 +1,18 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { SharePersonalRecordsModal } from "@/components/SharePersonalRecordsModal";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/Button";
 
 const StatsCharts = dynamic(
   () =>
@@ -19,7 +27,6 @@ const StatsCharts = dynamic(
 
 type DashboardClientProps = {
   totalWorkouts: number;
-  streak: number;
   totalVolume: number;
   personalRecords: Array<{
     exerciseName: string;
@@ -58,25 +65,119 @@ function formatDate(d: string) {
   });
 }
 
+function getLocalDateString(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
 export function DashboardClient({
-  totalWorkouts,
-  streak,
+  totalWorkouts: totalWorkoutsProp,
   totalVolume,
   personalRecords,
   muscleDistribution,
   strengthProgress,
   workoutFrequency,
-  recentWorkouts,
+  recentWorkouts: initialRecentWorkouts,
   volumeByDate,
   volumeByWeek,
 }: DashboardClientProps) {
   const router = useRouter();
+  const [recentWorkouts, setRecentWorkouts] = useState(initialRecentWorkouts);
+  const [totalWorkouts, setTotalWorkouts] = useState(totalWorkoutsProp);
+  const [streak, setStreak] = useState<number | null>(null);
   const [shareModalOpen, setShareModalOpen] = useState(false);
+  const [deleteWorkoutId, setDeleteWorkoutId] = useState<number | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const deletedIdsRef = useRef<Set<number>>(new Set());
 
-  const handleDeleteWorkout = async (id: number) => {
-    if (!confirm("Delete this workout? This cannot be undone.")) return;
-    const res = await fetch(`/api/workouts/${id}`, { method: "DELETE" });
-    if (res.ok) router.refresh();
+  useEffect(() => {
+    setTotalWorkouts(totalWorkoutsProp);
+  }, [totalWorkoutsProp]);
+
+  useEffect(() => {
+    const filtered = initialRecentWorkouts.filter(
+      (w) => !deletedIdsRef.current.has(w.id)
+    );
+    setRecentWorkouts(filtered);
+    const toRemove: number[] = [];
+    deletedIdsRef.current.forEach((id) => {
+      if (!initialRecentWorkouts.some((w) => w.id === id)) {
+        toRemove.push(id);
+      }
+    });
+    toRemove.forEach((id) => deletedIdsRef.current.delete(id));
+  }, [initialRecentWorkouts]);
+
+  const fetchStreak = useCallback(async () => {
+    const dateStr = getLocalDateString();
+    try {
+      const res = await fetch(`/api/stats/streak?date=${dateStr}`);
+      if (res.ok) {
+        const { streak: s } = await res.json();
+        setStreak(s);
+      } else {
+        setStreak(0);
+      }
+    } catch {
+      setStreak(0);
+    }
+  }, []);
+
+  useEffect(() => {
+    void fetchStreak();
+  }, [fetchStreak]);
+
+  const handleDeleteClick = (id: number) => {
+    setDeleteWorkoutId(id);
+    setDeleteError(null);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (deleteWorkoutId == null) return;
+    const idToDelete = deleteWorkoutId;
+    const workoutToRestore = recentWorkouts.find((w) => w.id === idToDelete);
+
+    setDeleting(true);
+    setDeleteError(null);
+    setDeleteWorkoutId(null);
+    deletedIdsRef.current.add(idToDelete);
+    setRecentWorkouts((prev) => prev.filter((w) => w.id !== idToDelete));
+    setTotalWorkouts((prev) => Math.max(0, prev - 1));
+
+    try {
+      const res = await fetch(`/api/workouts/${idToDelete}`, {
+        method: "DELETE",
+      });
+      if (res.ok) {
+        router.refresh();
+        void fetchStreak();
+      } else {
+        const data = await res.json();
+        throw new Error(data.error ?? "Delete failed");
+      }
+    } catch (err) {
+      deletedIdsRef.current.delete(idToDelete);
+      setTotalWorkouts((prev) => prev + 1);
+      if (workoutToRestore) {
+        setRecentWorkouts((prev) =>
+          [...prev, workoutToRestore].sort(
+            (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+          )
+        );
+      }
+      setDeleteError(err instanceof Error ? err.message : "Delete failed");
+      setDeleteWorkoutId(idToDelete);
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const handleCloseDeleteDialog = (open: boolean) => {
+    if (!open) {
+      setDeleteWorkoutId(null);
+      setDeleteError(null);
+    }
   };
 
   return (
@@ -104,7 +205,9 @@ export function DashboardClient({
             <div className="rounded-lg border border-border bg-surface p-4 shadow-sm">
               <p className="text-sm text-muted-foreground">Current Streak</p>
               <p className="mt-1 text-2xl font-bold text-foreground">
-                {streak} {streak === 1 ? "day" : "days"}
+                {streak === null
+                  ? "—"
+                  : `${streak} ${streak === 1 ? "day" : "days"}`}
               </p>
             </div>
             <div className="rounded-lg border border-border bg-surface p-4 shadow-sm">
@@ -235,7 +338,7 @@ export function DashboardClient({
                     </div>
                     <button
                       type="button"
-                      onClick={() => handleDeleteWorkout(w.id)}
+                      onClick={() => handleDeleteClick(w.id)}
                       className="shrink-0 rounded px-2 py-1 text-sm text-muted-foreground hover:bg-red-500/10 hover:text-red-600 dark:hover:text-red-400 focus:outline-none focus:ring-2 focus:ring-primary"
                       aria-label={`Delete workout from ${formatDate(w.date)}`}
                     >
@@ -244,7 +347,7 @@ export function DashboardClient({
                   </div>
                   {w.exercises && w.exercises.length > 0 && (
                     <ul className="mt-2 space-y-1 text-sm text-muted-foreground">
-                      {w.exercises.slice(0, 4).map((ex) => (
+                      {w.exercises.map((ex) => (
                         <li key={ex.id}>
                           {ex.name}
                           {(ex.sets != null ||
@@ -257,9 +360,6 @@ export function DashboardClient({
                           )}
                         </li>
                       ))}
-                      {w.exercises.length > 4 && (
-                        <li>+{w.exercises.length - 4} more</li>
-                      )}
                     </ul>
                   )}
                 </li>
@@ -274,6 +374,45 @@ export function DashboardClient({
         onClose={() => setShareModalOpen(false)}
         personalRecords={personalRecords}
       />
+      <Dialog open={deleteWorkoutId != null} onOpenChange={handleCloseDeleteDialog}>
+        <DialogContent className="max-w-sm" showCloseButton={true}>
+          <DialogHeader>
+            <DialogTitle>Delete this workout?</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            This cannot be undone.
+          </p>
+          {deleteError && (
+            <p
+              role="alert"
+              className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-400"
+            >
+              {deleteError}
+            </p>
+          )}
+          <DialogFooter className="sm:justify-end">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => handleCloseDeleteDialog(false)}
+              disabled={deleting}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="danger"
+              size="sm"
+              onClick={() => void handleConfirmDelete()}
+              disabled={deleting}
+              aria-busy={deleting}
+            >
+              {deleting ? "Deleting…" : "Delete"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </main>
   );
 }

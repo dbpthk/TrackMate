@@ -1,15 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getToken } from "next-auth/jwt";
+import { revalidateTag, revalidatePath } from "next/cache";
 import {
   getWorkoutsWithExercisesByUserId,
-  createWorkout,
-  createExercise,
-  getWorkoutByUserIdDateType,
-  getExercisesByWorkoutId,
-  deduplicateWorkoutsForUser,
-  deleteExercisesByWorkoutId,
+  createOrUpdateWorkoutWithExercises,
 } from "@/lib/db/queries";
-import { sanitizeInput, sanitizeInt } from "@/utils/sanitize";
+import {
+  sanitizeInput,
+  sanitizeInt,
+  sanitizeDate,
+  isReasonableDate,
+} from "@/utils/sanitize";
 
 export async function GET(req: NextRequest) {
   const token = await getToken({ req });
@@ -18,7 +19,6 @@ export async function GET(req: NextRequest) {
   }
   const userId = Number(token.id);
 
-  await deduplicateWorkoutsForUser(userId);
   const workouts = await getWorkoutsWithExercisesByUserId(userId);
   return NextResponse.json(workouts);
 }
@@ -38,31 +38,38 @@ export async function POST(req: NextRequest) {
       { status: 400 }
     );
   }
+  const dateStr = sanitizeDate(date);
+  if (!dateStr) {
+    return NextResponse.json(
+      { error: "Invalid date format. Use YYYY-MM-DD" },
+      { status: 400 }
+    );
+  }
+  if (!isReasonableDate(dateStr)) {
+    return NextResponse.json(
+      { error: "Date must be between 2010 and 2030" },
+      { status: 400 }
+    );
+  }
   const typeStr = sanitizeInput(type, 100);
-  try {
-    let workout = await getWorkoutByUserIdDateType(userId, date, typeStr);
-    if (!workout) {
-      workout = await createWorkout({ userId, date, type: typeStr });
-    } else {
-      await deleteExercisesByWorkoutId(workout.id);
-    }
-    const exercises = Array.isArray(exercisesInput) ? exercisesInput : [];
-    for (const ex of exercises) {
-      const name = sanitizeInput(ex?.name, 255);
-      if (!name) continue;
-      await createExercise({
-        workoutId: workout.id,
-        name,
+  const exercises = Array.isArray(exercisesInput)
+    ? exercisesInput.map((ex: { name?: unknown; sets?: unknown; reps?: unknown; weight?: unknown }) => ({
+        name: sanitizeInput(ex?.name, 255),
         sets: sanitizeInt(ex?.sets),
         reps: sanitizeInt(ex?.reps),
         weight: sanitizeInt(ex?.weight),
-      });
-    }
-    const createdExercises = await getExercisesByWorkoutId(workout.id);
-    return NextResponse.json(
-      { ...workout, exercises: createdExercises },
-      { status: 201 }
-    );
+      }))
+    : [];
+  try {
+    const result = await createOrUpdateWorkoutWithExercises({
+      userId,
+      date: dateStr,
+      type: typeStr,
+      exercises,
+    });
+    revalidateTag(`dashboard-${userId}`, "max");
+    revalidatePath("/dashboard");
+    return NextResponse.json(result, { status: 201 });
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Create failed";
     return NextResponse.json({ error: msg }, { status: 400 });

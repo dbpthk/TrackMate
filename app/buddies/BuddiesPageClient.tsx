@@ -12,6 +12,10 @@ import {
   type SentFollowRequest,
 } from "@/components/SentFollowRequestsSection";
 import {
+  AcceptedRequestsSection,
+  type AcceptedRequest,
+} from "@/components/AcceptedRequestsSection";
+import {
   FollowersSection,
   type Follower,
 } from "@/components/FollowersSection";
@@ -28,6 +32,8 @@ type BuddiesPageClientProps = {
   initialBuddies: Buddy[];
   initialFollowRequests: FollowRequest[];
   initialSentFollowRequests: SentFollowRequest[];
+  initialAcceptedSentRequests: AcceptedRequest[];
+  initialNotificationViewedRecipientIds: number[];
   initialFollowers: Follower[];
   initialSharedPRs: SharedPR[];
   initialSharedSent: SharedPRSent[];
@@ -37,6 +43,8 @@ export function BuddiesPageClient({
   initialBuddies,
   initialFollowRequests,
   initialSentFollowRequests,
+  initialAcceptedSentRequests,
+  initialNotificationViewedRecipientIds,
   initialFollowers,
   initialSharedPRs,
   initialSharedSent,
@@ -46,16 +54,23 @@ export function BuddiesPageClient({
     useState<FollowRequest[]>(initialFollowRequests);
   const [sentFollowRequests, setSentFollowRequests] =
     useState<SentFollowRequest[]>(initialSentFollowRequests);
+  const [acceptedSentRequests, setAcceptedSentRequests] = useState<
+    AcceptedRequest[]
+  >(initialAcceptedSentRequests);
   const [followers, setFollowers] = useState<Follower[]>(initialFollowers);
   const [sharedPRs, setSharedPRs] = useState<SharedPR[]>(initialSharedPRs);
   const [sharedSent, setSharedSent] = useState<SharedPRSent[]>(initialSharedSent);
   const [loadingRequestId, setLoadingRequestId] = useState<number | null>(null);
+  const [viewedNotificationRecipientIds, setViewedNotificationRecipientIds] =
+    useState<Set<number>>(() => new Set(initialNotificationViewedRecipientIds));
 
   const load = async () => {
     const [
       buddiesRes,
       requestsRes,
       sentRes,
+      acceptedSentRes,
+      viewedRes,
       followersRes,
       prsRes,
       sharedSentRes,
@@ -63,6 +78,8 @@ export function BuddiesPageClient({
       fetch("/api/buddies"),
       fetch("/api/buddies/requests"),
       fetch("/api/buddies/requests/sent"),
+      fetch("/api/buddies/requests/accepted-sent"),
+      fetch("/api/buddies/notifications/viewed"),
       fetch("/api/buddies/followers"),
       fetch("/api/share/personal-records"),
       fetch("/api/share/personal-records/sent"),
@@ -75,6 +92,15 @@ export function BuddiesPageClient({
     if (sentRes.ok) {
       const data = await sentRes.json();
       setSentFollowRequests(Array.isArray(data) ? data : []);
+    }
+    if (acceptedSentRes.ok) {
+      const data = await acceptedSentRes.json();
+      setAcceptedSentRequests(Array.isArray(data) ? data : []);
+    }
+    if (viewedRes.ok) {
+      const data = await viewedRes.json();
+      const ids = Array.isArray(data?.recipientIds) ? data.recipientIds : [];
+      setViewedNotificationRecipientIds(new Set(ids));
     }
     if (followersRes.ok) {
       const data = await followersRes.json();
@@ -188,13 +214,16 @@ export function BuddiesPageClient({
   };
 
   const handleDeleteShared = async (id: number) => {
-    setSharedSent((prev) => prev.filter((s) => s.id !== id));
     setLoadingRequestId(id);
     try {
       const res = await fetch(`/api/share/personal-records/${id}`, {
         method: "DELETE",
       });
-      if (!res.ok) await load();
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error ?? "Failed to delete");
+      }
+      setSharedSent((prev) => prev.filter((s) => s.id !== id));
     } finally {
       setLoadingRequestId(null);
     }
@@ -224,6 +253,28 @@ export function BuddiesPageClient({
               requests={sentFollowRequests}
               onCancel={handleCancelSentRequest}
               loadingId={loadingRequestId}
+            />
+            <AcceptedRequestsSection
+              requests={acceptedSentRequests}
+              viewedRecipientIds={viewedNotificationRecipientIds}
+              onView={async (recipientId) => {
+                const res = await fetch("/api/buddies/notifications/viewed", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ recipientId }),
+                });
+                if (res.ok) {
+                  setViewedNotificationRecipientIds((prev) =>
+                    new Set(prev).add(recipientId)
+                  );
+                  mutate("/api/buddies/badge");
+                }
+              }}
+              onRemove={(recipientId) =>
+                setAcceptedSentRequests((prev) =>
+                  prev.filter((r) => r.recipientId !== recipientId)
+                )
+              }
             />
             <FollowersSection
               followers={followers}

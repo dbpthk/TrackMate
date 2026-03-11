@@ -4,6 +4,7 @@ import {
   addExerciseToWorkoutDay,
   removeExerciseFromWorkoutDay,
 } from "@/lib/db/queries";
+import { isValidUuid } from "@/utils/sanitize";
 
 export async function POST(req: NextRequest) {
   const token = await getToken({ req });
@@ -17,6 +18,12 @@ export async function POST(req: NextRequest) {
   if (!workoutDayId || !exerciseId) {
     return NextResponse.json(
       { error: "workoutDayId and exerciseId required" },
+      { status: 400 }
+    );
+  }
+  if (!isValidUuid(workoutDayId) || !isValidUuid(exerciseId)) {
+    return NextResponse.json(
+      { error: "Invalid workoutDayId or exerciseId format" },
       { status: 400 }
     );
   }
@@ -46,6 +53,9 @@ export async function DELETE(req: NextRequest) {
   const id = searchParams.get("id") ?? undefined;
   if (!id) {
     return NextResponse.json({ error: "id required" }, { status: 400 });
+  }
+  if (!isValidUuid(id)) {
+    return NextResponse.json({ error: "Invalid id format" }, { status: 400 });
   }
   try {
     await removeExerciseFromWorkoutDay(id, userId);

@@ -2,10 +2,7 @@
 
 import dynamic from "next/dynamic";
 import { SessionProvider } from "next-auth/react";
-
-const StoreInit = dynamic(() => import("@/components/StoreInit"), {
-  ssr: false,
-});
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 const ThemeProvider = dynamic(
   () =>
@@ -29,11 +26,12 @@ export function Providers({
   session?: React.ComponentProps<typeof SessionProvider>["session"];
 }) {
   return (
-    <SessionProvider session={session}>
-      <ThemeProvider>
-        <StoreInit />
-        <AppShell>{children}</AppShell>
-      </ThemeProvider>
-    </SessionProvider>
+    <ErrorBoundary>
+      <SessionProvider session={session}>
+        <ThemeProvider>
+          <AppShell>{children}</AppShell>
+        </ThemeProvider>
+      </SessionProvider>
+    </ErrorBoundary>
   );
 }

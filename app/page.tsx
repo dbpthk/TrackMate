@@ -1,8 +1,22 @@
+/**
+ * Home page. Server component; initial data uses server timezone.
+ * HomeDashboard fetches client-side when clientToday is set (browser timezone).
+ * See docs/TIMEZONE.md for details.
+ */
 import type { Metadata } from "next";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth-options";
-import { getUserById } from "@/lib/db/queries";
-import { getWorkoutsWithExercisesByUserId } from "@/lib/db/queries";
+import {
+  getUserById,
+  getWorkoutsWithExercisesByUserId,
+  getHomeCompletions,
+  getWorkoutSplitByUserId,
+  createOrUpdateWorkoutSplit,
+} from "@/lib/db/queries";
+import {
+  getDayNamesFromProfileSplit,
+  getSplitTypeFromProfile,
+} from "@/lib/workout-split-map";
 import { getWeekStartEnd, getTodayDate } from "@/lib/home-utils";
 import { HomeDashboard } from "@/components/HomeDashboard";
 import { LandingPage } from "@/components/LandingPage";
@@ -40,7 +54,21 @@ export default async function HomePage() {
     );
   }
 
-  const workouts = await getWorkoutsWithExercisesByUserId(userId);
+  const [workouts, completedDates, workoutSplit] = await Promise.all([
+    getWorkoutsWithExercisesByUserId(userId),
+    (async () => {
+      const { start, end } = getWeekStartEnd();
+      return getHomeCompletions(userId, start, end);
+    })(),
+    (async () => {
+      const profileSplit = user.trainingSplit ?? null;
+      const splitType = getSplitTypeFromProfile(profileSplit);
+      const dayNames = getDayNamesFromProfileSplit(profileSplit);
+      await createOrUpdateWorkoutSplit(userId, splitType, dayNames);
+      return getWorkoutSplitByUserId(userId);
+    })(),
+  ]);
+
   const { start, end } = getWeekStartEnd();
   const today = getTodayDate();
   const weekWorkouts = workouts.filter(
@@ -56,6 +84,8 @@ export default async function HomePage() {
     },
     weekWorkouts,
     todayWorkout,
+    completedDates,
+    initialWorkoutSplit: workoutSplit ?? null,
   };
 
   return <HomeDashboard {...dashboardData} />;

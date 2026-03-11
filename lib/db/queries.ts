@@ -15,6 +15,8 @@ import {
   workoutSplits,
   workoutDays,
   workoutDayExercises,
+  homeCompletions,
+  notificationViewed,
   RECOMMENDED_SPLIT_MUSCLE_GROUPS,
   type User,
   type Workout,
@@ -224,19 +226,55 @@ export async function getWorkoutsByUserIdInRange(
     .orderBy(desc(workouts.date));
 }
 
-export async function getWorkoutsWithExercisesByUserId(
+/** Core fetch: workouts + exercises. No deduplication. */
+async function fetchWorkoutsWithExercisesByUserId(
   userId: number
 ): Promise<(Workout & { exercises: Exercise[] })[]> {
-  await deduplicateWorkoutsForUser(userId);
   const userWorkouts = await db
     .select()
     .from(workouts)
     .where(eq(workouts.userId, userId))
     .orderBy(desc(workouts.date));
-  const result: (Workout & { exercises: Exercise[] })[] = [];
+  if (userWorkouts.length === 0) return [];
+  const workoutIds = userWorkouts.map((w) => w.id);
+  const allExercises = await db
+    .select()
+    .from(exercises)
+    .where(inArray(exercises.workoutId, workoutIds));
+  const byWorkout = new Map<number, Exercise[]>();
+  for (const ex of allExercises) {
+    const list = byWorkout.get(ex.workoutId) ?? [];
+    list.push(ex);
+    byWorkout.set(ex.workoutId, list);
+  }
+  return userWorkouts.map((w) => ({
+    ...w,
+    exercises: byWorkout.get(w.id) ?? [],
+  }));
+}
+
+/** Check if user has duplicate workouts (same date+type). Used to avoid running dedup when unnecessary. */
+function hasDuplicateWorkouts(userWorkouts: Workout[]): boolean {
+  const normalizeType = (t: string) =>
+    String(t ?? "").trim().replace(/^Day \d+ —\s*/i, "");
+  const byKey = new Map<string, Workout[]>();
   for (const w of userWorkouts) {
-    const exs = await getExercisesByWorkoutId(w.id);
-    result.push({ ...w, exercises: exs });
+    const typeNorm = normalizeType(w.type);
+    const key = `${w.date}::${typeNorm || w.type}`;
+    const list = byKey.get(key) ?? [];
+    list.push(w);
+    byKey.set(key, list);
+  }
+  return [...byKey.values()].some((list) => list.length > 1);
+}
+
+export async function getWorkoutsWithExercisesByUserId(
+  userId: number
+): Promise<(Workout & { exercises: Exercise[] })[]> {
+  let result = await fetchWorkoutsWithExercisesByUserId(userId);
+  if (result.length > 0 && hasDuplicateWorkouts(result)) {
+    await deduplicateWorkoutsForUser(userId);
+    result = await fetchWorkoutsWithExercisesByUserId(userId);
   }
   return result;
 }
@@ -315,6 +353,118 @@ export async function updateWorkout(
 
 export async function deleteWorkout(id: number): Promise<void> {
   await db.delete(workouts).where(eq(workouts.id, id));
+}
+
+// --- Home completions (explicit "marked done" on home page, separate from logging workouts) ---
+export async function getHomeCompletions(
+  userId: number,
+  startDate: string,
+  endDate: string
+): Promise<string[]> {
+  const rows = await db
+    .select({ date: homeCompletions.date })
+    .from(homeCompletions)
+    .where(
+      and(
+        eq(homeCompletions.userId, userId),
+        gte(homeCompletions.date, startDate),
+        lte(homeCompletions.date, endDate)
+      )
+    );
+  return rows.map((r) => r.date);
+}
+
+export async function addHomeCompletion(
+  userId: number,
+  date: string
+): Promise<void> {
+  const dateStr = toDate(date);
+  await db
+    .insert(homeCompletions)
+    .values({ userId, date: dateStr })
+    .onConflictDoNothing({
+      target: [homeCompletions.userId, homeCompletions.date],
+    });
+}
+
+export async function removeHomeCompletion(
+  userId: number,
+  date: string
+): Promise<void> {
+  const dateStr = toDate(date);
+  await db
+    .delete(homeCompletions)
+    .where(
+      and(eq(homeCompletions.userId, userId), eq(homeCompletions.date, dateStr))
+    );
+}
+
+export type CreateOrUpdateWorkoutInput = {
+  userId: number;
+  date: string;
+  type: string;
+  exercises: Array<{
+    name: string;
+    sets?: number;
+    reps?: number;
+    weight?: number;
+  }>;
+};
+
+/** Create or update workout with exercises in a single transaction. */
+export async function createOrUpdateWorkoutWithExercises(
+  input: CreateOrUpdateWorkoutInput
+): Promise<Workout & { exercises: Exercise[] }> {
+  const dateStr = toDate(input.date);
+  const typeStr = trim(input.type, 100);
+  return db.transaction(async (tx) => {
+    const [existing] = await tx
+      .select()
+      .from(workouts)
+      .where(
+        and(
+          eq(workouts.userId, input.userId),
+          eq(workouts.date, dateStr),
+          eq(workouts.type, typeStr)
+        )
+      )
+      .limit(1);
+
+    let workout: Workout;
+    if (existing) {
+      await tx.delete(exercises).where(eq(exercises.workoutId, existing.id));
+      workout = existing;
+    } else {
+      const [created] = await tx
+        .insert(workouts)
+        .values({
+          userId: input.userId,
+          date: dateStr,
+          type: typeStr,
+        })
+        .returning();
+      if (!created) throw new Error("Failed to create workout");
+      workout = created;
+    }
+
+    const createdExercises: Exercise[] = [];
+    for (const ex of input.exercises) {
+      const name = trim(ex.name);
+      if (!name) continue;
+      const [inserted] = await tx
+        .insert(exercises)
+        .values({
+          workoutId: workout.id,
+          name,
+          sets: toInt(ex.sets),
+          reps: toInt(ex.reps),
+          weight: toInt(ex.weight),
+        })
+        .returning();
+      if (inserted) createdExercises.push(inserted);
+    }
+    return { ...workout, exercises: createdExercises };
+  });
 }
 
 // --- Exercises CRUD ---
@@ -609,6 +759,52 @@ export async function getPendingRequestsSentByUser(
   return rows;
 }
 
+export async function getAcceptedRequestsSentByUser(
+  requesterId: number,
+  maxResults = 10
+): Promise<SentRequestRow[]> {
+  const conditions = and(
+    eq(buddyRequests.requesterId, requesterId),
+    eq(buddyRequests.status, "accepted")
+  );
+  const rows = await db
+    .select({
+      id: buddyRequests.id,
+      recipientId: buddyRequests.recipientId,
+      recipientName: users.name,
+      recipientEmail: users.email,
+      createdAt: buddyRequests.createdAt,
+    })
+    .from(buddyRequests)
+    .innerJoin(users, eq(buddyRequests.recipientId, users.id))
+    .where(conditions)
+    .orderBy(desc(buddyRequests.createdAt))
+    .limit(maxResults);
+  return rows;
+}
+
+export async function getNotificationViewedRecipientIds(
+  userId: number
+): Promise<number[]> {
+  const rows = await db
+    .select({ recipientId: notificationViewed.recipientId })
+    .from(notificationViewed)
+    .where(eq(notificationViewed.userId, userId));
+  return rows.map((r) => r.recipientId);
+}
+
+export async function markNotificationViewed(
+  userId: number,
+  recipientId: number
+): Promise<void> {
+  await db
+    .insert(notificationViewed)
+    .values({ userId, recipientId })
+    .onConflictDoNothing({
+      target: [notificationViewed.userId, notificationViewed.recipientId],
+    });
+}
+
 export async function cancelBuddyRequest(
   requestId: number,
   requesterId: number
@@ -823,17 +1019,30 @@ export async function getBuddyWorkouts(
     .orderBy(desc(workouts.date))
     .limit(limit);
 
-  const result: (Workout & { exercises: Exercise[]; buddyName: string })[] = [];
-  for (const w of userWorkouts) {
-    const buddy = await getUserById(w.userId);
-    const exs = await getExercisesByWorkoutId(w.id);
-    result.push({
-      ...w,
-      exercises: exs,
-      buddyName: buddy?.name ?? "Unknown",
-    });
+  if (userWorkouts.length === 0) return [];
+
+  const workoutIds = userWorkouts.map((w) => w.id);
+  const allExercises = await db
+    .select()
+    .from(exercises)
+    .where(inArray(exercises.workoutId, workoutIds));
+  const userIds = [...new Set(userWorkouts.map((w) => w.userId))];
+  const userRows = await db
+    .select({ id: users.id, name: users.name })
+    .from(users)
+    .where(inArray(users.id, userIds));
+  const userMap = new Map(userRows.map((u) => [u.id, u.name]));
+  const byWorkout = new Map<number, Exercise[]>();
+  for (const ex of allExercises) {
+    const list = byWorkout.get(ex.workoutId) ?? [];
+    list.push(ex);
+    byWorkout.set(ex.workoutId, list);
   }
-  return result;
+  return userWorkouts.map((w) => ({
+    ...w,
+    exercises: byWorkout.get(w.id) ?? [],
+    buddyName: userMap.get(w.userId) ?? "Unknown",
+  }));
 }
 
 export async function getBuddyStreak(buddyId: number): Promise<number> {
@@ -921,7 +1130,10 @@ export async function getTotalVolume(userId: number): Promise<number> {
   return byDate.reduce((sum, d) => sum + d.volume, 0);
 }
 
-export async function getWorkoutStreak(userId: number): Promise<number> {
+export async function getWorkoutStreak(
+  userId: number,
+  asOfDate?: string
+): Promise<number> {
   const workoutDates = await db
     .select({ date: workouts.date })
     .from(workouts)
@@ -929,7 +1141,10 @@ export async function getWorkoutStreak(userId: number): Promise<number> {
     .orderBy(desc(workouts.date));
   const dates = new Set(workoutDates.map((r) => r.date));
   let streak = 0;
-  const today = new Date().toISOString().slice(0, 10);
+  const today =
+    asOfDate && /^\d{4}-\d{2}-\d{2}$/.test(asOfDate)
+      ? asOfDate
+      : new Date().toISOString().slice(0, 10);
   let d = new Date(today + "T12:00:00");
   while (dates.has(d.toISOString().slice(0, 10))) {
     streak++;
@@ -1116,12 +1331,25 @@ export async function getRecentWorkouts(
     .where(eq(workouts.userId, userId))
     .orderBy(desc(workouts.date))
     .limit(limit);
-  const result: (Workout & { exercises: Exercise[] })[] = [];
-  for (const w of userWorkouts) {
-    const exs = await getExercisesByWorkoutId(w.id);
-    result.push({ ...w, exercises: exs });
+  if (userWorkouts.length === 0) return [];
+  const workoutIds = userWorkouts.map((w) => w.id);
+  const allExercises = await db
+    .select()
+    .from(exercises)
+    .where(inArray(exercises.workoutId, workoutIds));
+  const byWorkout = new Map<number, Exercise[]>();
+  for (const ex of allExercises) {
+    const list = byWorkout.get(ex.workoutId) ?? [];
+    list.push(ex);
+    byWorkout.set(ex.workoutId, list);
   }
-  return result;
+  const withExercises = userWorkouts.map((w) => ({
+    ...w,
+    exercises: byWorkout.get(w.id) ?? [],
+  }));
+  return withExercises.filter((w) =>
+    w.exercises.some((ex) => ex.weight != null && ex.weight >= 1)
+  );
 }
 
 // --- Exercise Master (template exercises) ---
@@ -1187,6 +1415,31 @@ export async function getWorkoutSplitByUserId(
     .where(eq(workoutDays.splitId, split.id))
     .orderBy(asc(workoutDays.dayOrder), asc(workoutDays.dayName));
 
+  if (days.length === 0) return { ...split, workoutDays: [] };
+
+  const dayIds = days.map((d) => d.id);
+  const allDayExs = await db
+    .select()
+    .from(workoutDayExercises)
+    .where(inArray(workoutDayExercises.workoutDayId, dayIds))
+    .orderBy(asc(workoutDayExercises.order));
+  const exerciseIds = [...new Set(allDayExs.map((de) => de.exerciseId))];
+  const exerciseRows =
+    exerciseIds.length > 0
+      ? await db
+          .select()
+          .from(exerciseMaster)
+          .where(inArray(exerciseMaster.id, exerciseIds))
+      : [];
+  const exerciseMap = new Map(exerciseRows.map((e) => [e.id, e]));
+  const byDay = new Map<string, (WorkoutDayExercise & { exercise: ExerciseMaster })[]>();
+  for (const de of allDayExs) {
+    const ex = exerciseMap.get(de.exerciseId);
+    if (!ex) continue;
+    const list = byDay.get(de.workoutDayId) ?? [];
+    list.push({ ...de, exercise: ex });
+    byDay.set(de.workoutDayId, list);
+  }
   const result: WorkoutSplit & {
     workoutDays: (WorkoutDay & {
       workoutDayExercises: (WorkoutDayExercise & {
@@ -1195,23 +1448,11 @@ export async function getWorkoutSplitByUserId(
     })[];
   } = {
     ...split,
-    workoutDays: [],
+    workoutDays: days.map((day) => ({
+      ...day,
+      workoutDayExercises: byDay.get(day.id) ?? [],
+    })),
   };
-
-  for (const day of days) {
-    const dayExs = await db
-      .select()
-      .from(workoutDayExercises)
-      .where(eq(workoutDayExercises.workoutDayId, day.id))
-      .orderBy(asc(workoutDayExercises.order));
-    const withExercise: (WorkoutDayExercise & { exercise: ExerciseMaster })[] =
-      [];
-    for (const de of dayExs) {
-      const ex = await getExerciseMasterById(de.exerciseId);
-      if (ex) withExercise.push({ ...de, exercise: ex });
-    }
-    result.workoutDays.push({ ...day, workoutDayExercises: withExercise });
-  }
   return result;
 }
 

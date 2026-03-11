@@ -45,7 +45,10 @@ export function StatsCharts({
   volumeByWeek,
 }: StatsChartsProps) {
   const strengthByDate = strengthProgress.reduce<
-    Record<string, { date: string; weight: number; label: string }>
+    Record<
+      string,
+      { date: string; weight: number; label: string; exerciseName: string }
+    >
   >((acc, row) => {
     const key = row.date;
     const w = row.weight;
@@ -54,6 +57,7 @@ export function StatsCharts({
         date: row.date,
         weight: w,
         label: formatDate(row.date),
+        exerciseName: row.exerciseName || "",
       };
     }
     return acc;
@@ -102,7 +106,14 @@ export function StatsCharts({
                     border: "1px solid var(--color-border)",
                     borderRadius: "8px",
                   }}
-                  formatter={(value) => [`${value ?? 0} kg`, "Max weight"]}
+                  formatter={(value, _name, item) => {
+                    const ex = (item as { payload?: { exerciseName?: string } })
+                      ?.payload?.exerciseName;
+                    return [
+                      `${value ?? 0} kg${ex ? ` — ${ex}` : ""}`,
+                      "Max weight",
+                    ];
+                  }}
                   labelFormatter={(label) => label}
                 />
                 <Line
@@ -122,7 +133,7 @@ export function StatsCharts({
         }
       >
         <p className="text-sm text-muted-foreground">
-          Max weight lifted per workout date
+          Max weight lifted per workout date (exercise shown in tooltip)
         </p>
       </ChartCard>
 

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getToken } from "next-auth/jwt";
 import { updateWorkoutDayMuscleGroups } from "@/lib/db/queries";
+import { isValidUuid } from "@/utils/sanitize";
 
 export async function PATCH(
   req: NextRequest,
@@ -14,6 +15,9 @@ export async function PATCH(
   const { id } = await params;
   if (!id) {
     return NextResponse.json({ error: "id required" }, { status: 400 });
+  }
+  if (!isValidUuid(id)) {
+    return NextResponse.json({ error: "Invalid id format" }, { status: 400 });
   }
 
   const body = await req.json();

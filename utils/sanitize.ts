@@ -45,6 +45,21 @@ export function sanitizeDate(val: unknown): string {
   return /^\d{4}-\d{2}-\d{2}$/.test(s) ? s : "";
 }
 
+/** Validate date is within reasonable range (2010–2030). Use after sanitizeDate. */
+export function isReasonableDate(dateStr: string): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return false;
+  const year = parseInt(dateStr.slice(0, 4), 10);
+  return year >= 2010 && year <= 2030;
+}
+
+const UUID_REGEX =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+/** Validate UUID v4 format */
+export function isValidUuid(val: unknown): boolean {
+  return typeof val === "string" && UUID_REGEX.test(val.trim());
+}
+
 /** Sanitize JSON object for stats - allow only plain objects with string/number values */
 export function sanitizeStats(val: unknown): Record<string, unknown> | null {
   if (val === null || val === undefined) return null;

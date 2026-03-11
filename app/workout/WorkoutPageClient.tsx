@@ -6,6 +6,20 @@ import { WorkoutDayCard } from "@/components/WorkoutDayCard";
 import { AddExerciseModal } from "@/components/AddExerciseModal";
 import { DayMuscleGroupSelector } from "@/components/DayMuscleGroupSelector";
 import { LogWorkoutModal } from "@/components/LogWorkoutModal";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/Button";
+import { ChevronDown } from "lucide-react";
+import {
+  getTodayDate,
+  workoutsForDay,
+  getTodayWorkoutForDay,
+} from "@/lib/workout-utils";
 
 const fetcher = (url: string) =>
   fetch(url).then((r) => (r.ok ? r.json() : null));
@@ -41,10 +55,6 @@ type WorkoutSplit = {
   workoutDays: WorkoutDay[];
 };
 
-function getTodayDate() {
-  return new Date().toISOString().slice(0, 10);
-}
-
 type LoggedWorkout = {
   id: number;
   date: string;
@@ -58,32 +68,11 @@ type LoggedWorkout = {
   }>;
 };
 
-function normalizeType(t: string): string {
-  return t.trim().replace(/^Day \d+ —\s*/i, "");
-}
-
-function workoutsForDay(
-  workouts: LoggedWorkout[],
-  dayName: string
-): LoggedWorkout[] {
-  const norm = normalizeType(dayName);
-  return workouts.filter(
-    (w) => normalizeType(w.type) === norm || w.type === dayName
-  );
-}
-
-function getTodayWorkoutForDay(
-  workouts: LoggedWorkout[],
-  dayName: string,
-  date: string
-): LoggedWorkout | undefined {
-  const forDay = workoutsForDay(workouts, dayName);
-  return forDay.find((w) => w.date === date);
-}
-
 export function WorkoutPageClient() {
   const [addModalDay, setAddModalDay] = useState<WorkoutDay | null>(null);
   const [logModalDay, setLogModalDay] = useState<WorkoutDay | null>(null);
+  const [removeError, setRemoveError] = useState<string | null>(null);
+  const [muscleGroupsExpanded, setMuscleGroupsExpanded] = useState(false);
 
   const {
     data: split,
@@ -109,8 +98,9 @@ export function WorkoutPageClient() {
     void mutateWorkouts();
   };
 
-  const handleRemoveExercise = (id: string) => {
+  const handleRemoveExercise = async (id: string) => {
     if (!split) return;
+    const previousSplit = split;
     const optimisticSplit: WorkoutSplit = {
       ...split,
       workoutDays: split.workoutDays.map((d) => ({
@@ -119,10 +109,21 @@ export function WorkoutPageClient() {
       })),
     };
     mutateSplit(optimisticSplit, { revalidate: false });
-    void fetch(
-      `/api/workout-day-exercises?id=${encodeURIComponent(id)}`,
-      { method: "DELETE" }
-    ).then(() => void mutateSplit());
+    try {
+      const res = await fetch(
+        `/api/workout-day-exercises?id=${encodeURIComponent(id)}`,
+        { method: "DELETE" }
+      );
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error ?? "Failed to remove exercise");
+      }
+      void mutateSplit();
+    } catch (err) {
+      mutateSplit(previousSplit, { revalidate: false });
+      void mutateSplit();
+      setRemoveError(err instanceof Error ? err.message : "Failed to remove exercise");
+    }
   };
 
   const handleUpdateMuscleGroups = async (
@@ -130,6 +131,7 @@ export function WorkoutPageClient() {
     muscleGroups: string[]
   ) => {
     if (!split) return;
+    const previousSplit = split;
     const optimisticSplit: WorkoutSplit = {
       ...split,
       workoutDays: split.workoutDays.map((d) =>
@@ -137,12 +139,22 @@ export function WorkoutPageClient() {
       ),
     };
     mutateSplit(optimisticSplit, { revalidate: false });
-    const res = await fetch(`/api/workout-days/${dayId}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ muscleGroups }),
-    });
-    void mutateSplit();
+    try {
+      const res = await fetch(`/api/workout-days/${dayId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ muscleGroups }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error ?? "Failed to update muscle groups");
+      }
+      void mutateSplit();
+    } catch (err) {
+      mutateSplit(previousSplit, { revalidate: false });
+      void mutateSplit();
+      setRemoveError(err instanceof Error ? err.message : "Failed to update muscle groups");
+    }
   };
 
   const handleLogSave = () => {
@@ -169,27 +181,42 @@ export function WorkoutPageClient() {
         ) : (
           <div className="space-y-6">
             <section aria-label="Muscle groups per day">
-              <h2 className="mb-3 text-lg font-semibold text-foreground">
-                Muscle groups for each day
-              </h2>
-              <p className="mb-4 text-sm text-muted-foreground">
-                Select muscle groups for each day. Recommended splits are
-                pre-selected.
-              </p>
-              <div className="mb-8 space-y-4">
-                {split.workoutDays.map((day) => (
-                  <DayMuscleGroupSelector
-                    key={day.id}
-                    dayId={day.id}
-                    dayName={day.dayName}
-                    dayOrder={day.dayOrder}
-                    muscleGroups={day.muscleGroups ?? []}
-                    onSave={(groups) =>
-                      handleUpdateMuscleGroups(day.id, groups)
-                    }
-                  />
-                ))}
-              </div>
+              <button
+                type="button"
+                onClick={() => setMuscleGroupsExpanded((prev) => !prev)}
+                className="mb-4 flex w-full items-center justify-between rounded-lg border border-border bg-surface px-4 py-3 text-left transition-colors hover:bg-surface-muted focus:outline-none focus:ring-2 focus:ring-primary"
+                aria-expanded={muscleGroupsExpanded}
+              >
+                <h2 className="text-lg font-semibold text-foreground">
+                  Muscle groups for each day
+                </h2>
+                <ChevronDown
+                  className={`h-5 w-5 shrink-0 text-muted-foreground transition-transform ${muscleGroupsExpanded ? "rotate-180" : ""}`}
+                  aria-hidden
+                />
+              </button>
+              {muscleGroupsExpanded && (
+                <>
+                  <p className="mb-4 text-sm text-muted-foreground">
+                    Select muscle groups for each day. Recommended splits are
+                    pre-selected.
+                  </p>
+                  <div className="mb-8 space-y-4">
+                    {split.workoutDays.map((day) => (
+                      <DayMuscleGroupSelector
+                        key={day.id}
+                        dayId={day.id}
+                        dayName={day.dayName}
+                        dayOrder={day.dayOrder}
+                        muscleGroups={day.muscleGroups ?? []}
+                        onSave={(groups) =>
+                          handleUpdateMuscleGroups(day.id, groups)
+                        }
+                      />
+                    ))}
+                  </div>
+                </>
+              )}
             </section>
 
             <h2 className="text-lg font-semibold text-foreground">
@@ -227,6 +254,21 @@ export function WorkoutPageClient() {
           onSave={() => void mutateSplit()}
         />
       )}
+      <Dialog open={!!removeError} onOpenChange={(open) => !open && setRemoveError(null)}>
+        <DialogContent className="max-w-sm" showCloseButton={true}>
+          <DialogHeader>
+            <DialogTitle>Could not remove exercise</DialogTitle>
+          </DialogHeader>
+          {removeError && (
+            <p className="text-sm text-muted-foreground">{removeError}</p>
+          )}
+          <DialogFooter className="sm:justify-end">
+            <Button size="sm" onClick={() => setRemoveError(null)}>
+              OK
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       {logModalDay && (
         <LogWorkoutModal
           isOpen={!!logModalDay}

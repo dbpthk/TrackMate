@@ -8,7 +8,7 @@ import { usePathname } from "next/navigation";
 import { ThemeToggle } from "./ThemeToggle";
 import { SignOutButton } from "./SignOutButton";
 
-const fetcher = async (url: string): Promise<unknown[]> => {
+const requestsFetcher = async (url: string): Promise<unknown[]> => {
   const res = await fetch(url);
   if (!res.ok) return [];
   try {
@@ -16,6 +16,23 @@ const fetcher = async (url: string): Promise<unknown[]> => {
     return Array.isArray(data) ? data : [];
   } catch {
     return [];
+  }
+};
+
+const badgeFetcher = async (
+  url: string
+): Promise<{ pendingRequests: number; unviewedNotifications: number; total: number }> => {
+  const res = await fetch(url);
+  if (!res.ok) return { pendingRequests: 0, unviewedNotifications: 0, total: 0 };
+  try {
+    const data = await res.json();
+    return {
+      pendingRequests: Number(data.pendingRequests) || 0,
+      unviewedNotifications: Number(data.unviewedNotifications) || 0,
+      total: Number(data.total) || 0,
+    };
+  } catch {
+    return { pendingRequests: 0, unviewedNotifications: 0, total: 0 };
   }
 };
 
@@ -47,10 +64,16 @@ export function Navbar() {
   const isSignedIn = status === "authenticated" && !!session?.user;
   const { data: followRequests = [] } = useSWR<unknown[]>(
     isSignedIn ? "/api/buddies/requests" : null,
-    fetcher,
+    requestsFetcher,
     { revalidateOnFocus: true }
   );
-  const pendingCount = Array.isArray(followRequests) ? followRequests.length : 0;
+  const { data: badgeData } = useSWR(
+    isSignedIn ? "/api/buddies/badge" : null,
+    badgeFetcher,
+    { revalidateOnFocus: true }
+  );
+  const buddiesBadgeCount =
+    badgeData?.total ?? (Array.isArray(followRequests) ? followRequests.length : 0);
   const links = isSignedIn ? navLinksSignedIn : navLinksSignedOut;
   const currentPath = pathname ?? "/";
 
@@ -88,12 +111,12 @@ export function Navbar() {
               className={`relative ${navLinkClass} ${isActive(href) ? navLinkActiveClass : ""}`}
             >
               {label}
-              {href === "/buddies" && pendingCount > 0 && (
+              {href === "/buddies" && buddiesBadgeCount > 0 && (
                 <span
                   className="absolute -right-0.5 -top-0.5 flex min-h-[1.25rem] min-w-[1.25rem] items-center justify-center rounded-full bg-primary px-1 text-[0.65rem] font-bold text-primary-foreground"
-                  aria-label={`${pendingCount} pending follow request${pendingCount !== 1 ? "s" : ""}`}
+                  aria-label={`${buddiesBadgeCount} notification${buddiesBadgeCount !== 1 ? "s" : ""}`}
                 >
-                  {pendingCount > 9 ? "9+" : pendingCount}
+                  {buddiesBadgeCount > 9 ? "9+" : buddiesBadgeCount}
                 </span>
               )}
             </Link>
@@ -189,12 +212,12 @@ export function Navbar() {
               className={`flex items-center gap-2 ${navLinkClass} ${isActive(href) ? navLinkActiveClass : ""}`}
             >
               {label}
-              {href === "/buddies" && pendingCount > 0 && (
+              {href === "/buddies" && buddiesBadgeCount > 0 && (
                 <span
                   className="flex min-h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-primary px-1 text-[0.65rem] font-bold text-primary-foreground"
-                  aria-label={`${pendingCount} pending follow request${pendingCount !== 1 ? "s" : ""}`}
+                  aria-label={`${buddiesBadgeCount} notification${buddiesBadgeCount !== 1 ? "s" : ""}`}
                 >
-                  {pendingCount > 9 ? "9+" : pendingCount}
+                  {buddiesBadgeCount > 9 ? "9+" : buddiesBadgeCount}
                 </span>
               )}
             </Link>

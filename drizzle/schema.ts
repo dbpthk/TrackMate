@@ -9,6 +9,7 @@ import {
   primaryKey,
   uuid,
   timestamp,
+  index,
 } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 
@@ -102,26 +103,36 @@ export const users = pgTable("users", {
   stats: jsonb("stats").$type<Record<string, unknown>>(),
 });
 
-export const workouts = pgTable("workouts", {
-  id: serial("id").primaryKey(),
-  userId: integer("user_id")
-    .notNull()
-    .references(() => users.id, { onDelete: "cascade" }),
-  date: date("date").notNull(),
-  type: varchar("type", { length: 100 }).notNull(),
-});
+export const workouts = pgTable(
+  "workouts",
+  {
+    id: serial("id").primaryKey(),
+    userId: integer("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    date: date("date").notNull(),
+    type: varchar("type", { length: 100 }).notNull(),
+  },
+  (t) => [
+    index("workouts_user_date_type_idx").on(t.userId, t.date, t.type),
+  ]
+);
 
-export const exercises = pgTable("exercises", {
-  id: serial("id").primaryKey(),
-  workoutId: integer("workout_id")
-    .notNull()
-    .references(() => workouts.id, { onDelete: "cascade" }),
-  name: varchar("name", { length: 255 }).notNull(),
-  sets: integer("sets"),
-  reps: integer("reps"),
-  weight: integer("weight"),
-  duration: integer("duration"),
-});
+export const exercises = pgTable(
+  "exercises",
+  {
+    id: serial("id").primaryKey(),
+    workoutId: integer("workout_id")
+      .notNull()
+      .references(() => workouts.id, { onDelete: "cascade" }),
+    name: varchar("name", { length: 255 }).notNull(),
+    sets: integer("sets"),
+    reps: integer("reps"),
+    weight: integer("weight"),
+    duration: integer("duration"),
+  },
+  (t) => [index("exercises_workout_id_idx").on(t.workoutId)]
+);
 
 export const buddies = pgTable(
   "buddies",
@@ -137,33 +148,46 @@ export const buddies = pgTable(
 );
 
 /** Follow requests: requester wants to follow recipient; recipient must confirm */
-export const buddyRequests = pgTable("buddy_requests", {
-  id: serial("id").primaryKey(),
-  requesterId: integer("requester_id")
-    .notNull()
-    .references(() => users.id, { onDelete: "cascade" }),
-  recipientId: integer("recipient_id")
-    .notNull()
-    .references(() => users.id, { onDelete: "cascade" }),
-  status: varchar("status", { length: 20 }).notNull().default("pending"),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-});
+export const buddyRequests = pgTable(
+  "buddy_requests",
+  {
+    id: serial("id").primaryKey(),
+    requesterId: integer("requester_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    recipientId: integer("recipient_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    status: varchar("status", { length: 20 }).notNull().default("pending"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (t) => [
+    index("buddy_requests_recipient_status_idx").on(t.recipientId, t.status),
+  ]
+);
 
 /** Shared personal records: sharer sends their PRs to buddies */
-export const sharedPersonalRecords = pgTable("shared_personal_records", {
-  id: serial("id").primaryKey(),
-  sharerId: integer("sharer_id")
-    .notNull()
-    .references(() => users.id, { onDelete: "cascade" }),
-  recipientId: integer("recipient_id")
-    .notNull()
-    .references(() => users.id, { onDelete: "cascade" }),
-  sharedAt: timestamp("shared_at").defaultNow().notNull(),
-  records: jsonb("records").$type<
-    Array<{ exerciseName: string; weight: number; reps: number | null; date: string }>
-  >()
-    .notNull(),
-});
+export const sharedPersonalRecords = pgTable(
+  "shared_personal_records",
+  {
+    id: serial("id").primaryKey(),
+    sharerId: integer("sharer_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    recipientId: integer("recipient_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    sharedAt: timestamp("shared_at").defaultNow().notNull(),
+    records: jsonb("records").$type<
+      Array<{ exerciseName: string; weight: number; reps: number | null; date: string }>
+    >()
+      .notNull(),
+  },
+  (t) => [
+    index("shared_pr_recipient_idx").on(t.recipientId),
+    index("shared_pr_sharer_idx").on(t.sharerId),
+  ]
+);
 
 // --- Workout template / split structure (master exercises, splits, days) ---
 
@@ -235,10 +259,43 @@ export const workoutDayExercises = pgTable("workout_day_exercises", {
   order: integer("order").notNull().default(0),
 });
 
+/** Notification viewed state: userId (viewer) has viewed notification from recipientId (who accepted their follow request) */
+export const notificationViewed = pgTable(
+  "notification_viewed",
+  {
+    userId: integer("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    recipientId: integer("recipient_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+  },
+  (t) => [
+    primaryKey({ columns: [t.userId, t.recipientId] }),
+    index("notification_viewed_user_idx").on(t.userId),
+  ]
+);
+
+/** Dates user explicitly marked as completed on home page (separate from logging workouts) */
+export const homeCompletions = pgTable(
+  "home_completions",
+  {
+    userId: integer("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    date: date("date").notNull(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.userId, t.date] }),
+    index("home_completions_user_idx").on(t.userId),
+  ]
+);
+
 export const usersRelations = relations(users, ({ many }) => ({
   workouts: many(workouts),
   buddies: many(buddies),
   workoutSplits: many(workoutSplits),
+  homeCompletions: many(homeCompletions),
 }));
 
 export const workoutsRelations = relations(workouts, ({ one, many }) => ({
@@ -269,6 +326,10 @@ export const workoutDayExercisesRelations = relations(workoutDayExercises, ({ on
   exercise: one(exerciseMaster),
 }));
 
+export const homeCompletionsRelations = relations(homeCompletions, ({ one }) => ({
+  user: one(users),
+}));
+
 export type User = typeof users.$inferSelect;
 export type Workout = typeof workouts.$inferSelect;
 export type Exercise = typeof exercises.$inferSelect;
@@ -278,3 +339,4 @@ export type ExerciseMaster = typeof exerciseMaster.$inferSelect;
 export type WorkoutSplit = typeof workoutSplits.$inferSelect;
 export type WorkoutDay = typeof workoutDays.$inferSelect;
 export type WorkoutDayExercise = typeof workoutDayExercises.$inferSelect;
+export type HomeCompletion = typeof homeCompletions.$inferSelect;

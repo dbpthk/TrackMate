@@ -1,12 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getToken } from "next-auth/jwt";
+import { getAcceptedRequestsSentByUser } from "@/lib/db/queries";
 
-/** Workouts are private. Only shared personal records (from Stats page) are visible to buddies. */
 export async function GET(req: NextRequest) {
   const token = await getToken({ req });
   if (!token?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+  const userId = Number(token.id);
 
-  return NextResponse.json([]);
+  const requests = await getAcceptedRequestsSentByUser(userId);
+  return NextResponse.json(requests);
 }

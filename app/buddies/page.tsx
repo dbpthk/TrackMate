@@ -5,6 +5,8 @@ import {
   getBuddiesWithUsers,
   getPendingRequestsForUser,
   getPendingRequestsSentByUser,
+  getAcceptedRequestsSentByUser,
+  getNotificationViewedRecipientIds,
   getSharedPersonalRecordsReceived,
   getSharedPersonalRecordsSent,
   getUsersWhoFollowYou,
@@ -22,15 +24,25 @@ export default async function BuddiesPage() {
   }
   const userId = Number(session.user.id);
 
-  const [buddies, followRequests, sentFollowRequests, followers, sharedPRs, sharedSent] =
-    await Promise.all([
-      getBuddiesWithUsers(userId),
-      getPendingRequestsForUser(userId),
-      getPendingRequestsSentByUser(userId),
-      getUsersWhoFollowYou(userId),
-      getSharedPersonalRecordsReceived(userId, 20),
-      getSharedPersonalRecordsSent(userId, 20),
-    ]);
+  const [
+    buddies,
+    followRequests,
+    sentFollowRequests,
+    acceptedSentRequests,
+    notificationViewedIds,
+    followers,
+    sharedPRs,
+    sharedSent,
+  ] = await Promise.all([
+    getBuddiesWithUsers(userId),
+    getPendingRequestsForUser(userId),
+    getPendingRequestsSentByUser(userId),
+    getAcceptedRequestsSentByUser(userId),
+    getNotificationViewedRecipientIds(userId),
+    getUsersWhoFollowYou(userId),
+    getSharedPersonalRecordsReceived(userId, 20),
+    getSharedPersonalRecordsSent(userId, 20),
+  ]);
 
   const sharedPRsForClient = sharedPRs.map((s) => ({
     ...s,
@@ -52,6 +64,12 @@ export default async function BuddiesPage() {
       r.createdAt instanceof Date ? r.createdAt.toISOString() : String(r.createdAt),
   }));
 
+  const acceptedSentForClient = acceptedSentRequests.map((r) => ({
+    ...r,
+    createdAt:
+      r.createdAt instanceof Date ? r.createdAt.toISOString() : String(r.createdAt),
+  }));
+
   const sharedSentForClient = sharedSent.map((s) => ({
     ...s,
     sharedAt:
@@ -63,6 +81,8 @@ export default async function BuddiesPage() {
       initialBuddies={buddies}
       initialFollowRequests={followRequestsForClient}
       initialSentFollowRequests={sentForClient}
+      initialAcceptedSentRequests={acceptedSentForClient}
+      initialNotificationViewedRecipientIds={notificationViewedIds}
       initialFollowers={followers}
       initialSharedPRs={sharedPRsForClient}
       initialSharedSent={sharedSentForClient}

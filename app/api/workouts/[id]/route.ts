@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getToken } from "next-auth/jwt";
+import { revalidateTag, revalidatePath } from "next/cache";
 import {
   getWorkoutById,
   updateWorkout,
@@ -108,5 +109,7 @@ export async function DELETE(
   }
 
   await deleteWorkout(idNum);
+  revalidateTag(`dashboard-${userId}`, "max");
+  revalidatePath("/dashboard");
   return new NextResponse(null, { status: 204 });
 }

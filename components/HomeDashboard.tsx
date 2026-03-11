@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
 import { Card, CardHeader, CardTitle, CardContent } from "./Card";
+import { Button } from "./Button";
 import type { WorkoutWithExercises } from "./WorkoutCard";
 import {
   getGreeting,
@@ -13,8 +14,18 @@ import {
   getTodaysFocus,
   getUpcomingWorkouts,
   getDayOptionsForSplit,
+  hasWorkoutSplitSetup,
+  isTodayRestDay,
   MOTIVATIONAL_QUOTES,
 } from "@/lib/home-utils";
+
+type WorkoutSplitData = {
+  workoutDays: Array<{
+    id: string;
+    dayName: string;
+    workoutDayExercises: Array<{ exercise: { name: string } }>;
+  }>;
+};
 
 type HomeDashboardProps = {
   user: {
@@ -24,55 +35,174 @@ type HomeDashboardProps = {
   };
   weekWorkouts: WorkoutWithExercises[];
   todayWorkout: WorkoutWithExercises | null;
+  completedDates: string[];
+  initialWorkoutSplit?: WorkoutSplitData | null;
 };
 
 export function HomeDashboard({
   user,
   weekWorkouts,
   todayWorkout: initialTodayWorkout,
+  completedDates: initialCompletedDates,
+  initialWorkoutSplit,
 }: HomeDashboardProps) {
   const [workouts, setWorkouts] = useState(weekWorkouts);
   const [todayWorkout, setTodayWorkout] = useState(initialTodayWorkout);
+  const [completedDates, setCompletedDates] = useState(
+    () => new Set(initialCompletedDates)
+  );
   const [quoteIndex, setQuoteIndex] = useState(0);
-  const [splitDayNames, setSplitDayNames] = useState<string[]>([]);
-  const suggestedFocus = getTodaysFocus(
+  const initialNames =
+    initialWorkoutSplit?.workoutDays?.map((d) => d.dayName) ?? [];
+  const [splitDayNames, setSplitDayNames] = useState<string[]>(initialNames);
+  const [workoutSplit, setWorkoutSplit] = useState<WorkoutSplitData | null>(
+    initialWorkoutSplit ?? null
+  );
+  const [selectedWeekDate, setSelectedWeekDate] = useState<string | null>(null);
+  const [selectedSplitType, setSelectedSplitType] = useState<string>("");
+  const [completing, setCompleting] = useState(false);
+  const [clientToday, setClientToday] = useState<{
+    date: string;
+    weekday: string;
+  } | null>(null);
+
+  useEffect(() => {
+    setClientToday({
+      date: getTodayDate(),
+      weekday: getTodayWeekday(),
+    });
+  }, []);
+
+  useEffect(() => {
+    if (clientToday && initialWorkoutSplit?.workoutDays?.length) {
+      const defaultVal = getDefaultDayType(clientToday.weekday);
+      if (defaultVal) {
+        setSelectedDayType((prev) =>
+          initialWorkoutSplit!.workoutDays.some((d) => d.dayName === defaultVal)
+            ? defaultVal
+            : prev
+        );
+      }
+    }
+  }, [clientToday?.weekday, initialWorkoutSplit]);
+
+  const suggestedFocus = clientToday
+    ? getTodaysFocus(
+        user.trainingSplit || null,
+        user.preferredDays || null
+      )
+    : null;
+  const dayOptions = getDayOptionsForSplit(user.trainingSplit || null);
+  const getDefaultDayType = (todayWk: string | null) => {
+    const initSplit = initialWorkoutSplit;
+    if (initSplit?.workoutDays?.length && todayWk) {
+      const preferredDaysList =
+        user.preferredDays?.split(/[,\s]+/).filter(Boolean) ?? [];
+      const idx = preferredDaysList.findIndex(
+        (d) => d.toLowerCase() === todayWk.toLowerCase()
+      );
+      const focus = todayWk
+        ? getTodaysFocus(
+            user.trainingSplit || null,
+            user.preferredDays || null
+          )
+        : null;
+      const defaultForToday =
+        idx >= 0 && initSplit.workoutDays[idx]
+          ? initSplit.workoutDays[idx].dayName
+          : focus && initSplit.workoutDays.some((d) => d.dayName === focus)
+            ? focus
+            : initSplit.workoutDays[0]?.dayName;
+      return defaultForToday ?? focus ?? dayOptions[0]?.value ?? "";
+    }
+    return dayOptions[0]?.value ?? "";
+  };
+  const [selectedDayType, setSelectedDayType] = useState<string>(
+    dayOptions[0]?.value ?? ""
+  );
+
+  const todayDate = clientToday?.date ?? "";
+  const hasSetup = hasWorkoutSplitSetup(
     user.trainingSplit || null,
     user.preferredDays || null
   );
-  const dayOptions = getDayOptionsForSplit(user.trainingSplit || null);
-  const [selectedDayType, setSelectedDayType] = useState<string>(
-    suggestedFocus || (dayOptions[0]?.value ?? "")
-  );
+  const isRestDay =
+    clientToday &&
+    isTodayRestDay(
+      user.trainingSplit || null,
+      user.preferredDays || null
+    );
+  const defaultSplitForToday =
+    splitDayNames.length > 0 && workoutSplit && clientToday
+      ? (() => {
+          const preferredDaysList =
+            user.preferredDays?.split(/[,\s]+/).filter(Boolean) ?? [];
+          const idx = preferredDaysList.findIndex(
+            (d) => d.toLowerCase() === clientToday.weekday.toLowerCase()
+          );
+          return idx >= 0
+            ? workoutSplit.workoutDays[idx]?.dayName ?? null
+            : null;
+        })()
+      : suggestedFocus;
 
-  const todayDate = getTodayDate();
-  const todaysFocus = splitDayNames.length > 0
-    ? selectedDayType
-    : suggestedFocus || selectedDayType || dayOptions[0]?.value;
-  const upcoming = getUpcomingWorkouts(
-    user.trainingSplit || null,
-    user.preferredDays || null,
-    5
-  );
-  const weekDates = getWeekDates();
-  const completedDates = new Set(workouts.map((w) => w.date));
-  const weekCompleted = weekDates.filter((d) =>
-    completedDates.has(d.date)
-  ).length;
-  const totalWeekDays = user.preferredDays
-    ? user.preferredDays.split(/[,\s]+/).filter(Boolean).length
-    : 3;
+  const todaysFocus =
+    selectedWeekDate === todayDate && selectedSplitType
+      ? selectedSplitType
+      : todayWorkout
+        ? todayWorkout.type
+        : defaultSplitForToday || selectedDayType || dayOptions[0]?.value;
+  const upcoming = clientToday
+    ? getUpcomingWorkouts(
+        user.trainingSplit || null,
+        user.preferredDays || null,
+        5
+      )
+    : [];
+  const weekDates = clientToday ? getWeekDates() : [];
+  const weekCompleted = weekDates.filter((d) => {
+    if (!completedDates.has(d.date)) return false;
+    const workoutForDate = workouts.find((w) => w.date === d.date);
+    return workoutForDate?.type !== "Rest Day";
+  }).length;
+  const totalWeekDays = hasSetup
+    ? (user.preferredDays?.split(/[,\s]+/).filter(Boolean).length ?? 0)
+    : 0;
 
   const fetchWorkouts = useCallback(async () => {
-    const res = await fetch("/api/workouts");
-    if (res.ok) {
-      const data: WorkoutWithExercises[] = await res.json();
-      const { start, end } = getWeekStartEnd();
+    const { start, end } = getWeekStartEnd();
+    const todayStr = getTodayDate();
+    const [workoutsRes, completionsRes] = await Promise.all([
+      fetch("/api/workouts"),
+      fetch(`/api/home-completions?start=${start}&end=${end}`),
+    ]);
+    if (workoutsRes.ok) {
+      const data: WorkoutWithExercises[] = await workoutsRes.json();
       const week = data.filter((w) => w.date >= start && w.date <= end);
-      const today = data.find((w) => w.date === todayDate) ?? null;
+      const today = data.find((w) => w.date === todayStr) ?? null;
       setWorkouts(week);
       setTodayWorkout(today ?? null);
     }
-  }, [todayDate]);
+    if (completionsRes.ok) {
+      const { dates } = await completionsRes.json();
+      setCompletedDates(new Set(dates ?? []));
+    }
+  }, []);
+
+  useEffect(() => {
+    if (clientToday) {
+      fetchWorkouts();
+    }
+  }, [clientToday?.date, fetchWorkouts]);
+
+  // Sync from server only on initial mount (hydration). Avoid overwriting client
+  // state after fetchWorkouts has updated it. Hydration-safe: runs once.
+  const hasInitialSync = useRef(false);
+  useEffect(() => {
+    if (hasInitialSync.current) return;
+    hasInitialSync.current = true;
+    setCompletedDates(new Set(initialCompletedDates));
+  }, [initialCompletedDates]);
 
   useEffect(() => {
     const id = setInterval(
@@ -90,16 +220,46 @@ export function HomeDashboard({
         const data = await res.json();
         const names = data?.workoutDays?.map((d: { dayName: string }) => d.dayName) ?? [];
         setSplitDayNames(names);
+        setWorkoutSplit(data);
         setSelectedDayType((prev) => {
           if (names.length === 0) return prev;
-          if (suggestedFocus && names.includes(suggestedFocus)) return suggestedFocus;
+          const todayWk = clientToday?.weekday;
+          const preferredIdx =
+            todayWk &&
+            user.preferredDays
+              ? user.preferredDays
+                  .split(/[,\s]+/)
+                  .filter(Boolean)
+                  .findIndex((d) => d.toLowerCase() === todayWk.toLowerCase())
+              : -1;
+          const defaultForToday =
+            preferredIdx >= 0 && data.workoutDays?.[preferredIdx]
+              ? data.workoutDays[preferredIdx].dayName
+              : suggestedFocus && names.includes(suggestedFocus)
+                ? suggestedFocus
+                : names[0];
+          if (defaultForToday && names.includes(defaultForToday))
+            return defaultForToday;
           if (prev && names.includes(prev)) return prev;
           return names[0];
         });
+        if (names.length > 0) {
+          setSelectedSplitType((prev) => (prev && names.includes(prev) ? prev : names[0]));
+        }
       }
     };
     fetchSplit();
-  }, [user.trainingSplit, suggestedFocus]);
+  }, [user.trainingSplit, suggestedFocus, clientToday?.weekday]);
+
+  useEffect(() => {
+    if (
+      selectedWeekDate === todayDate &&
+      selectedSplitType &&
+      splitDayNames.includes(selectedSplitType)
+    ) {
+      setSelectedDayType(selectedSplitType);
+    }
+  }, [selectedWeekDate, todayDate, selectedSplitType, splitDayNames]);
 
   const firstName = user.name?.split(/\s+/)[0] || "there";
 
@@ -120,23 +280,23 @@ export function HomeDashboard({
             <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
               {getGreeting()}, {firstName} 💪
             </h1>
-            {todaysFocus && (
+            {clientToday && (todaysFocus || isRestDay) && (
               <p className="mt-1 text-lg text-muted-foreground">
-                Today&apos;s focus: {todaysFocus}
+                Today&apos;s focus: {isRestDay ? "Rest" : todaysFocus}
               </p>
             )}
             <div className="mt-4">
               <div className="flex items-center justify-between text-sm">
                 <span className="text-muted-foreground">Weekly progress</span>
                 <span className="font-medium text-foreground">
-                  {weekCompleted}/{totalWeekDays} sessions
+                  {clientToday ? `${weekCompleted}/${totalWeekDays}` : "—/—"} sessions
                 </span>
               </div>
               <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-surface-muted">
                 <div
                   className="h-full rounded-full bg-primary transition-all duration-500"
                   style={{
-                    width: `${totalWeekDays ? (weekCompleted / totalWeekDays) * 100 : 0}%`,
+                    width: `${clientToday && totalWeekDays ? (weekCompleted / totalWeekDays) * 100 : 0}%`,
                   }}
                 />
               </div>
@@ -150,106 +310,195 @@ export function HomeDashboard({
                 <CardTitle as="h2">Today&apos;s Workout</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                {todaysFocus ? (
+                {!clientToday ? (
+                  <p className="text-muted-foreground">Loading…</p>
+                ) : isRestDay ? (
+                  <p className="text-muted-foreground">
+                    Rest day — enjoy your recovery. No workout scheduled for today.
+                  </p>
+                ) : todaysFocus ? (
                   <>
-                    {availableDayOptions.length > 1 && !todayWorkout && (
-                      <div>
-                        <label
-                          htmlFor="home-day-select"
-                          className="mb-1.5 block text-sm font-medium text-foreground"
-                        >
-                          What workout today?
-                        </label>
-                        <select
-                          id="home-day-select"
-                          value={selectedDayType}
-                          onChange={(e) => setSelectedDayType(e.target.value)}
-                          className="w-full rounded-lg border border-border bg-surface px-4 py-3 text-base text-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-                        >
-                          {availableDayOptions.map((opt) => (
-                            <option key={opt.value} value={opt.value}>
-                              {opt.label}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                    )}
-                    {(availableDayOptions.length <= 1 || todayWorkout) && (
+                    {availableDayOptions.length > 1 &&
+                      !todayWorkout &&
+                      !completedDates.has(todayDate) && (
+                        <div>
+                          <label
+                            htmlFor="home-day-select"
+                            className="mb-1.5 block text-sm font-medium text-foreground"
+                          >
+                            What workout today?
+                          </label>
+                          <select
+                            id="home-day-select"
+                            value={selectedDayType}
+                            onChange={(e) =>
+                              setSelectedDayType(e.target.value)
+                            }
+                            className="w-full rounded-lg border border-border bg-surface px-4 py-3 text-base text-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                          >
+                            {availableDayOptions.map((opt) => (
+                              <option key={opt.value} value={opt.value}>
+                                {opt.label}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      )}
+                    {(availableDayOptions.length <= 1 ||
+                      todayWorkout ||
+                      completedDates.has(todayDate)) && (
                       <p className="text-foreground">
-                        {todayWorkout ? todayWorkout.type : todaysFocus}
+                        {todayWorkout
+                          ? todayWorkout.type
+                          : todaysFocus || selectedDayType}
                       </p>
                     )}
-                    {todayWorkout ? (
-                      <label className="flex cursor-pointer items-center gap-3">
-                        <input
-                          type="checkbox"
-                          checked={true}
-                          onChange={() => {
-                            setTodayWorkout(null);
-                            setWorkouts((prev) =>
-                              prev.filter((w) => w.date !== todayDate)
-                            );
-                            void fetch(
-                              `/api/workouts/${todayWorkout.id}`,
-                              { method: "DELETE" }
-                            ).then(() => void fetchWorkouts());
-                          }}
-                          className="h-5 w-5 rounded border-border text-primary focus:ring-primary"
-                          aria-label="Undo — mark as not completed"
-                        />
-                        <span className="text-sm font-medium text-green-600 dark:text-green-400">
-                          ✓ Completed — uncheck to undo for today
-                        </span>
-                      </label>
-                    ) : (
-                      <label className="flex cursor-pointer items-center gap-3">
-                        <input
-                          type="checkbox"
-                          checked={false}
-                          onChange={() => {
-                            const optimistic: WorkoutWithExercises = {
-                              id: -1,
-                              userId: 0,
-                              date: todayDate,
-                              type: todaysFocus,
-                              exercises: [],
-                            };
-                            setTodayWorkout(optimistic);
-                            setWorkouts((prev) => {
-                              const filtered = prev.filter(
-                                (w) => w.date !== todayDate
-                              );
-                              return [...filtered, optimistic].sort(
-                                (a, b) =>
-                                  new Date(a.date).getTime() -
-                                  new Date(b.date).getTime()
-                              );
+                    <label className="flex cursor-pointer items-center gap-3">
+                      <input
+                        type="checkbox"
+                        checked={completedDates.has(todayDate)}
+                        onChange={() => {
+                          const isCompleted = completedDates.has(todayDate);
+                          if (isCompleted) {
+                            setCompletedDates((prev) => {
+                              const next = new Set(prev);
+                              next.delete(todayDate);
+                              return next;
                             });
-                            void fetch("/api/workouts", {
-                              method: "POST",
-                              headers: { "Content-Type": "application/json" },
-                              body: JSON.stringify({
-                                date: todayDate,
-                                type: todaysFocus,
-                              }),
-                            }).then((res) => {
-                              if (res.ok) void fetchWorkouts();
-                              else {
-                                setTodayWorkout(null);
-                                setWorkouts((prev) =>
-                                  prev.filter((w) => w.date !== todayDate)
+                            const hadEmptyWorkout =
+                              todayWorkout &&
+                              (!todayWorkout.exercises ||
+                                todayWorkout.exercises.length === 0);
+                            void fetch(
+                              `/api/home-completions?date=${todayDate}`,
+                              { method: "DELETE" }
+                            ).then(async (res) => {
+                              if (!res.ok) {
+                                setCompletedDates((prev) =>
+                                  new Set([...prev, todayDate])
                                 );
+                                void fetchWorkouts();
+                                return;
+                              }
+                              if (hadEmptyWorkout) {
+                                const wRes = await fetch("/api/workouts");
+                                if (wRes.ok) {
+                                  const data: WorkoutWithExercises[] =
+                                    await wRes.json();
+                                  const empty = data.find(
+                                    (w) =>
+                                      w.date === todayDate &&
+                                      (!w.exercises || w.exercises.length === 0)
+                                  );
+                                  if (empty?.id) {
+                                    await fetch(
+                                      `/api/workouts/${empty.id}`,
+                                      { method: "DELETE" }
+                                    );
+                                  }
+                                }
+                                void fetchWorkouts();
                               }
                             });
-                          }}
-                          className="h-5 w-5 rounded border-border text-primary focus:ring-primary"
-                          aria-label="Mark today's session as completed"
-                        />
-                        <span className="text-sm text-foreground">
-                          Mark as completed
-                        </span>
-                      </label>
-                    )}
+                          } else {
+                            setCompletedDates((prev) =>
+                              new Set([...prev, todayDate])
+                            );
+                            const workoutType = todayWorkout
+                              ? todayWorkout.type
+                              : todaysFocus || selectedDayType;
+                            if (!todayWorkout && workoutType) {
+                              const optimistic: WorkoutWithExercises = {
+                                id: -1,
+                                userId: 0,
+                                date: todayDate,
+                                type: workoutType,
+                                exercises: [],
+                              };
+                              setTodayWorkout(optimistic);
+                              setWorkouts((prev) => {
+                                const filtered = prev.filter(
+                                  (w) => w.date !== todayDate
+                                );
+                                return [...filtered, optimistic].sort(
+                                  (a, b) =>
+                                    new Date(a.date).getTime() -
+                                    new Date(b.date).getTime()
+                                );
+                              });
+                              void fetch("/api/workouts", {
+                                method: "POST",
+                                headers: {
+                                  "Content-Type": "application/json",
+                                },
+                                body: JSON.stringify({
+                                  date: todayDate,
+                                  type: workoutType,
+                                  exercises: [],
+                                }),
+                              }).then((res) => {
+                                if (!res.ok) {
+                                  setTodayWorkout(null);
+                                  setWorkouts((prev) =>
+                                    prev.filter((w) => w.date !== todayDate)
+                                  );
+                                  setCompletedDates((prev) => {
+                                    const next = new Set(prev);
+                                    next.delete(todayDate);
+                                    return next;
+                                  });
+                                  return;
+                                }
+                                void fetch("/api/home-completions", {
+                                  method: "POST",
+                                  headers: {
+                                    "Content-Type": "application/json",
+                                  },
+                                  body: JSON.stringify({ date: todayDate }),
+                                }).then((cRes) => {
+                                  if (!cRes.ok) void fetchWorkouts();
+                                });
+                                void fetchWorkouts();
+                              });
+                            } else {
+                              void fetch("/api/home-completions", {
+                                method: "POST",
+                                headers: {
+                                  "Content-Type": "application/json",
+                                },
+                                body: JSON.stringify({ date: todayDate }),
+                              }).then((res) => {
+                                if (!res.ok) {
+                                  setCompletedDates((prev) => {
+                                    const next = new Set(prev);
+                                    next.delete(todayDate);
+                                    return next;
+                                  });
+                                  void fetchWorkouts();
+                                }
+                              });
+                            }
+                          }
+                        }}
+                        className="h-5 w-5 rounded border-border text-primary focus:ring-primary"
+                        aria-label={
+                          completedDates.has(todayDate)
+                            ? "Undo — mark as not completed"
+                            : "Mark today's session as completed"
+                        }
+                      />
+                      <span
+                        className={
+                          completedDates.has(todayDate)
+                            ? "text-sm font-medium text-green-600 dark:text-green-400"
+                            : "text-sm text-foreground"
+                        }
+                      >
+                        {completedDates.has(todayDate)
+                          ? "✓ Completed — uncheck to undo for today"
+                          : "Mark as completed"}
+                      </span>
+                    </label>
                   </>
                 ) : (
                   <p className="text-muted-foreground">
@@ -272,36 +521,155 @@ export function HomeDashboard({
             <h2 className="mb-3 text-lg font-semibold text-foreground">
               This Week
             </h2>
+            <p className="mb-2 text-sm text-muted-foreground">
+              Tap a day to log a workout
+            </p>
             <div className="flex gap-2 overflow-x-auto pb-2">
               {weekDates.map(({ date, weekday }) => {
                 const done = completedDates.has(date);
+                const workoutForDate = workouts.find((w) => w.date === date);
+                const isRestDay = workoutForDate?.type === "Rest Day";
                 const isToday = date === todayDate;
+                const isSelected = selectedWeekDate === date;
                 return (
-                  <div
+                  <button
                     key={date}
-                    className={`flex min-w-[2.75rem] flex-col items-center rounded-lg border p-2.5 transition-colors ${
-                      done
-                        ? "border-primary bg-primary/10 text-primary"
-                        : isToday
-                          ? "border-primary/50 bg-surface-muted"
-                          : "border-border bg-surface"
+                    type="button"
+                    onClick={() => {
+                      setSelectedWeekDate((prev) =>
+                        prev === date ? null : date
+                      );
+                      if (splitDayNames.length > 0 && selectedWeekDate !== date) {
+                        const preferredDaysList =
+                          user.preferredDays?.split(/[,\s]+/).filter(Boolean) ??
+                          [];
+                        const preferredIdx = preferredDaysList.findIndex(
+                          (d) =>
+                            d.toLowerCase() === weekday.toLowerCase()
+                        );
+                        if (
+                          preferredIdx >= 0 &&
+                          workoutSplit?.workoutDays[preferredIdx]
+                        ) {
+                          setSelectedSplitType(
+                            workoutSplit.workoutDays[preferredIdx].dayName
+                          );
+                        } else {
+                          setSelectedSplitType("Rest Day");
+                        }
+                      }
+                    }}
+                    className={`flex min-w-[2.75rem] flex-col items-center rounded-lg border p-2.5 transition-colors focus:outline-none focus:ring-2 focus:ring-primary ${
+                      isSelected
+                        ? "border-primary ring-2 ring-primary/30"
+                        : done
+                          ? "border-primary bg-primary/10 text-primary"
+                          : isToday
+                            ? "border-primary/50 bg-surface-muted"
+                            : "border-border bg-surface hover:border-primary/50"
                     }`}
+                    aria-label={`${weekday}${done ? (isRestDay ? " rest day" : " completed") : ""}${isSelected ? ", selected" : ""}`}
                   >
                     <span className="text-xs font-medium text-muted-foreground">
                       {weekday.slice(0, 2)}
                     </span>
-                    <span
-                      className="mt-1 text-lg"
-                      aria-label={
-                        done ? `${weekday} completed` : `${weekday} not done`
-                      }
-                    >
-                      {done ? "✓" : "—"}
+                    <span className="mt-1 text-lg">
+                      {done ? (isRestDay ? "✕" : "✓") : "—"}
                     </span>
-                  </div>
+                  </button>
                 );
               })}
             </div>
+
+            {selectedWeekDate && hasSetup && workoutSplit && (
+              <Card className="mt-4">
+                <CardHeader>
+                  <CardTitle as="h3" className="text-base">
+                    Log workout for{" "}
+                    {weekDates.find((d) => d.date === selectedWeekDate)
+                      ?.weekday ?? ""}{" "}
+                    (
+                    {new Date(selectedWeekDate + "T12:00:00").toLocaleDateString(
+                      undefined,
+                      { month: "short", day: "numeric" }
+                    )}
+                    )
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div>
+                    <label
+                      htmlFor="week-day-split-select"
+                      className="mb-1.5 block text-sm font-medium text-foreground"
+                    >
+                      Workout type
+                    </label>
+                    <select
+                      id="week-day-split-select"
+                      value={selectedSplitType}
+                      onChange={(e) => setSelectedSplitType(e.target.value)}
+                      className="w-full rounded-lg border border-border bg-surface px-4 py-3 text-base text-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                    >
+                      <option value="Rest Day">Rest Day</option>
+                      {workoutSplit.workoutDays.map((d) => (
+                        <option key={d.id} value={d.dayName}>
+                          {d.dayName}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <Button
+                    type="button"
+                    onClick={async () => {
+                      if (!selectedWeekDate || !selectedSplitType) return;
+                      setCompleting(true);
+                      try {
+                        const day = workoutSplit.workoutDays.find(
+                          (d) => d.dayName === selectedSplitType
+                        );
+                        const exercises =
+                          day?.workoutDayExercises?.map((we) => ({
+                            name: we.exercise?.name ?? "Exercise",
+                            sets: undefined,
+                            reps: undefined,
+                            weight: undefined,
+                          })) ?? [];
+                        const res = await fetch("/api/workouts", {
+                          method: "POST",
+                          headers: {
+                            "Content-Type": "application/json",
+                          },
+                          body: JSON.stringify({
+                            date: selectedWeekDate,
+                            type: selectedSplitType,
+                            exercises,
+                          }),
+                        });
+                        if (res.ok) {
+                          await fetch("/api/home-completions", {
+                            method: "POST",
+                            headers: {
+                              "Content-Type": "application/json",
+                            },
+                            body: JSON.stringify({
+                              date: selectedWeekDate,
+                            }),
+                          });
+                          void fetchWorkouts();
+                          setSelectedWeekDate(null);
+                        }
+                      } finally {
+                        setCompleting(false);
+                      }
+                    }}
+                    disabled={completing}
+                    className="w-full"
+                  >
+                    {completing ? "Saving…" : "Mark as completed"}
+                  </Button>
+                </CardContent>
+              </Card>
+            )}
           </section>
 
           {/* 4. Upcoming Workouts */}

@@ -42,6 +42,7 @@ const EXERCISES: { name: string; muscleGroup: string; equipment?: string }[] = [
   { name: "Face Pull", muscleGroup: "back" },
   { name: "Rack Pull", muscleGroup: "back" },
   { name: "Chest Supported Row", muscleGroup: "back" },
+  { name: "Shrugs", muscleGroup: "back" },
   // BICEPS
   { name: "Barbell Curl", muscleGroup: "biceps" },
   { name: "EZ Bar Curl", muscleGroup: "biceps" },
@@ -53,6 +54,7 @@ const EXERCISES: { name: string; muscleGroup: string; equipment?: string }[] = [
   { name: "Concentration Curl", muscleGroup: "biceps" },
   { name: "Reverse Curl", muscleGroup: "biceps" },
   { name: "Cable Bicep Curl", muscleGroup: "biceps" },
+  { name: "Dumbbell Curls", muscleGroup: "biceps" },
   // SHOULDERS
   { name: "Seated Dumbbell Shoulder Press", muscleGroup: "shoulders" },
   { name: "Barbell Overhead Press", muscleGroup: "shoulders" },
@@ -75,6 +77,7 @@ const EXERCISES: { name: string; muscleGroup: string; equipment?: string }[] = [
   { name: "Hack Squat", muscleGroup: "legs" },
   { name: "Glute Bridge", muscleGroup: "legs" },
   { name: "Standing Calf Raise", muscleGroup: "legs" },
+  { name: "Deadlift", muscleGroup: "legs" },
   // ABS (6)
   { name: "Hanging Leg Raise", muscleGroup: "abs" },
   { name: "Reverse Crunch", muscleGroup: "abs" },

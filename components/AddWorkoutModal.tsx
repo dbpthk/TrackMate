@@ -4,6 +4,13 @@ import { Button } from "./Button";
 import { Input } from "./Input";
 import { ExerciseInputRow, type ExerciseInput } from "./ExerciseInputRow";
 import type { WorkoutWithExercises } from "./WorkoutCard";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
 
 type AddWorkoutModalProps = {
   isOpen: boolean;
@@ -56,6 +63,9 @@ export function AddWorkoutModal({
   >({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   useEffect(() => {
     if (isOpen) {
@@ -145,17 +155,30 @@ export function AddWorkoutModal({
     }
   };
 
-  const handleDelete = async () => {
+  const handleDeleteClick = () => {
+    setShowDeleteConfirm(true);
+    setDeleteError(null);
+  };
+
+  const handleConfirmDelete = async () => {
     if (!workout || !onDelete) return;
-    if (!confirm("Delete this workout?")) return;
-    setLoading(true);
+    setDeleting(true);
+    setDeleteError(null);
     try {
       await onDelete(workout.id);
+      setShowDeleteConfirm(false);
       onClose();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Delete failed");
+      setDeleteError(err instanceof Error ? err.message : "Delete failed");
     } finally {
-      setLoading(false);
+      setDeleting(false);
+    }
+  };
+
+  const handleCloseDeleteDialog = (open: boolean) => {
+    if (!open) {
+      setShowDeleteConfirm(false);
+      setDeleteError(null);
     }
   };
 
@@ -239,7 +262,7 @@ export function AddWorkoutModal({
             <Button
               type="button"
               variant="danger"
-              onClick={handleDelete}
+              onClick={handleDeleteClick}
               disabled={loading}
               aria-label="Delete workout"
             >
@@ -251,6 +274,42 @@ export function AddWorkoutModal({
           </Button>
         </div>
       </form>
+      <Dialog open={showDeleteConfirm} onOpenChange={handleCloseDeleteDialog}>
+        <DialogContent className="max-w-sm" showCloseButton={true}>
+          <DialogHeader>
+            <DialogTitle>Delete this workout?</DialogTitle>
+          </DialogHeader>
+          {deleteError && (
+            <p
+              role="alert"
+              className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-400"
+            >
+              {deleteError}
+            </p>
+          )}
+          <DialogFooter className="sm:justify-end">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => handleCloseDeleteDialog(false)}
+              disabled={deleting}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="danger"
+              size="sm"
+              onClick={() => void handleConfirmDelete()}
+              disabled={deleting}
+              aria-busy={deleting}
+            >
+              {deleting ? "Deleting…" : "Delete"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Modal>
   );
 }

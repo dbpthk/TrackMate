@@ -64,6 +64,27 @@
       "when": 1773025000000,
       "tag": "0008_email_verification",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1773228034159,
+      "tag": "0009_faithful_ricochet",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1773229622331,
+      "tag": "0010_living_spencer_smythe",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1773234107307,
+      "tag": "0011_giant_lester",
+      "breakpoints": true
     }
   ]
 }

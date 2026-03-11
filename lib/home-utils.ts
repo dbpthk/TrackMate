@@ -1,7 +1,23 @@
+/**
+ * Home page date utilities.
+ *
+ * TIMEZONE: Uses local timezone via getFullYear/getMonth/getDate.
+ * On server: uses deployment timezone (often UTC on Vercel).
+ * On client: uses browser timezone.
+ * Avoid toISOString().slice(0,10) for "today" - it returns UTC date.
+ */
 import { TRAINING_SPLIT_DETAILS } from "@/drizzle/schema";
 import { normalizeProfileSplit } from "@/lib/workout-split-map";
 
 const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"] as const;
+
+/** Format date as YYYY-MM-DD in local timezone (avoids UTC shift from toISOString) */
+function toLocalDateString(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
 
 export function getGreeting(): string {
   const hour = new Date().getHours();
@@ -25,7 +41,7 @@ export function getTodayWeekday(): (typeof WEEKDAYS)[number] {
 }
 
 export function getTodayDate(): string {
-  return new Date().toISOString().slice(0, 10);
+  return toLocalDateString(new Date());
 }
 
 export function getWeekStartEnd(): { start: string; end: string } {
@@ -37,8 +53,8 @@ export function getWeekStartEnd(): { start: string; end: string } {
   const sunday = new Date(monday);
   sunday.setDate(monday.getDate() + 6);
   return {
-    start: monday.toISOString().slice(0, 10),
-    end: sunday.toISOString().slice(0, 10),
+    start: toLocalDateString(monday),
+    end: toLocalDateString(sunday),
   };
 }
 
@@ -54,7 +70,7 @@ export function getWeekDates(): { date: string; weekday: (typeof WEEKDAYS)[numbe
     d.setDate(monday.getDate() + i);
     const wd = getWeekdayFromDate(d);
     result.push({
-      date: d.toISOString().slice(0, 10),
+      date: toLocalDateString(d),
       weekday: wd,
     });
   }
@@ -79,17 +95,34 @@ export function getTodaysFocus(
   trainingSplit: string | null,
   preferredDays: string | null
 ): string | null {
+  const upcoming = getUpcomingWorkouts(trainingSplit, preferredDays, 1);
+  const todayWd = getWeekdayFromDate(new Date());
+  const todaysEntry = upcoming[0];
+  if (todaysEntry?.weekday.toLowerCase() === todayWd.toLowerCase()) {
+    return todaysEntry.type;
+  }
+  return null;
+}
+
+/** True if user has set up training split and preferred days in profile */
+export function hasWorkoutSplitSetup(
+  trainingSplit: string | null,
+  preferredDays: string | null
+): boolean {
   const normalized = normalizeProfileSplit(trainingSplit);
   if (!normalized || !preferredDays || !(normalized in TRAINING_SPLIT_DETAILS)) {
-    return null;
+    return false;
   }
-  const details = TRAINING_SPLIT_DETAILS[normalized as keyof typeof TRAINING_SPLIT_DETAILS];
-  const days = preferredDays.split(/[,\s]+/).filter(Boolean);
-  const today = getTodayWeekday();
-  const idx = days.findIndex((d) => d.toLowerCase() === today.toLowerCase());
-  if (idx < 0) return null;
-  const line = details[idx];
-  return line ? line.replace(/^Day \d+ — /, "") : null;
+  return preferredDays.split(/[,\s]+/).filter(Boolean).length > 0;
+}
+
+/** True if today is a rest day (user has setup but today is not a preferred workout day) */
+export function isTodayRestDay(
+  trainingSplit: string | null,
+  preferredDays: string | null
+): boolean {
+  if (!hasWorkoutSplitSetup(trainingSplit, preferredDays)) return false;
+  return getTodaysFocus(trainingSplit, preferredDays) === null;
 }
 
 /** All day options for a training split (short names for display/selection) */
@@ -126,7 +159,7 @@ export function getUpcomingWorkouts(
   while (result.length < count) {
     const d = new Date(today);
     d.setDate(today.getDate() + dayIdx);
-    const dateStr = d.toISOString().slice(0, 10);
+    const dateStr = toLocalDateString(d);
     const wd = getWeekdayFromDate(d);
     const preferredIdx = days.findIndex((x) => x.toLowerCase() === wd.toLowerCase());
     if (preferredIdx >= 0) {

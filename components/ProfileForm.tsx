@@ -81,20 +81,31 @@ export function ProfileForm({
     const raw = initialValues.preferredDays?.trim();
     if (!raw) {
       setPreferredDays([]);
-      return;
+    } else {
+      const parsed = raw.split(/[,\s]+/).filter(Boolean);
+      const valid = parsed
+        .map((d) => {
+          const match = WEEKDAYS.find(
+            (w) => w.toLowerCase() === d.trim().toLowerCase()
+          );
+          return match ?? null;
+        })
+        .filter((d): d is (typeof WEEKDAYS)[number] => d != null);
+      setPreferredDays([...new Set(valid)]);
     }
-    const parsed = raw.split(/[,\s]+/).filter(Boolean);
-    const valid = parsed
-      .map((d) => {
-        const match = WEEKDAYS.find(
-          (w) => w.toLowerCase() === d.trim().toLowerCase()
-        );
-        return match ?? null;
-      })
-      .filter((d): d is (typeof WEEKDAYS)[number] => d != null);
-    setPreferredDays([...new Set(valid)]);
     setUnits(initialValues.units || "metric");
-  }, [initialValues]);
+  }, [
+    initialValues.name,
+    initialValues.goal,
+    initialValues.experienceLevel,
+    initialValues.age,
+    initialValues.height,
+    initialValues.weight,
+    initialValues.bodyFat,
+    initialValues.trainingSplit,
+    initialValues.preferredDays,
+    initialValues.units,
+  ]);
 
   // Trim preferred days when training split changes and exceeds max
   useEffect(() => {

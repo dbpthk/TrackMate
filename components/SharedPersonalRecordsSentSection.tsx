@@ -50,15 +50,32 @@ export function SharedPersonalRecordsSentSection({
   loadingId,
 }: SharedPersonalRecordsSentSectionProps) {
   const [deleteId, setDeleteId] = useState<number | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const handleDeleteClick = (id: number) => {
     setDeleteId(id);
+    setDeleteError(null);
   };
 
-  const handleConfirmDelete = () => {
-    if (deleteId != null) {
-      void onDelete(deleteId);
+  const handleConfirmDelete = async () => {
+    if (deleteId == null) return;
+    setDeleting(true);
+    setDeleteError(null);
+    try {
+      await onDelete(deleteId);
       setDeleteId(null);
+    } catch (err) {
+      setDeleteError(err instanceof Error ? err.message : "Failed to delete");
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const handleCloseDeleteDialog = (open: boolean) => {
+    if (!open) {
+      setDeleteId(null);
+      setDeleteError(null);
     }
   };
 
@@ -116,22 +133,37 @@ export function SharedPersonalRecordsSentSection({
           </li>
         ))}
       </ul>
-      <Dialog open={deleteId != null} onOpenChange={(open) => !open && setDeleteId(null)}>
+      <Dialog open={deleteId != null} onOpenChange={handleCloseDeleteDialog}>
         <DialogContent className="max-w-sm" showCloseButton={true}>
           <DialogHeader>
             <DialogTitle>Are you sure you want to delete?</DialogTitle>
           </DialogHeader>
+          {deleteError && (
+            <p
+              role="alert"
+              className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-400"
+            >
+              {deleteError}
+            </p>
+          )}
           <DialogFooter className="sm:justify-end">
             <Button
               type="button"
               variant="outline"
               size="sm"
-              onClick={() => setDeleteId(null)}
+              onClick={() => handleCloseDeleteDialog(false)}
+              disabled={deleting}
             >
               Cancel
             </Button>
-            <Button type="button" size="sm" onClick={handleConfirmDelete}>
-              Delete
+            <Button
+              type="button"
+              size="sm"
+              onClick={() => void handleConfirmDelete()}
+              disabled={deleting}
+              aria-busy={deleting}
+            >
+              {deleting ? "Deleting…" : "Delete"}
             </Button>
           </DialogFooter>
         </DialogContent>
