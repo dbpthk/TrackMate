@@ -58,17 +58,66 @@ export async function signup(input: SignupInput) {
   return { id: user.id, name: user.name, email: user.email };
 }
 
+const DEMO_EMAIL = "demo@trackmate.com";
+const DEMO_PASSWORD = "demo@trackmate";
+
+/** Server-only. Returns demo credentials for programmatic sign-in. Never expose to client. */
+export function getDemoCredentials() {
+  return { email: DEMO_EMAIL, password: DEMO_PASSWORD };
+}
+
 export type VerifyCredentialsResult =
   | { success: true; user: { id: number; name: string; email: string } }
   | { success: false; reason: "invalid" | "unverified" };
+
+/** Ensure demo user exists. Creates if missing (first-login). */
+async function ensureDemoUser(): Promise<{ id: number; name: string; email: string }> {
+  const existing = await getUserByEmail(DEMO_EMAIL);
+  if (existing && existing.emailVerified) {
+    return { id: existing.id, name: existing.name, email: existing.email };
+  }
+  if (existing && !existing.emailVerified) {
+    const hashed = await bcrypt.hash(DEMO_PASSWORD, SALT_ROUNDS);
+    await db
+      .update(users)
+      .set({
+        password: hashed,
+        emailVerified: new Date(),
+        verificationToken: null,
+        verificationTokenExpiry: null,
+      })
+      .where(eq(users.id, existing.id));
+    return { id: existing.id, name: existing.name, email: existing.email };
+  }
+  const hashed = await bcrypt.hash(DEMO_PASSWORD, SALT_ROUNDS);
+  const [user] = await db
+    .insert(users)
+    .values({
+      name: "Demo User",
+      email: DEMO_EMAIL,
+      password: hashed,
+      emailVerified: new Date(),
+    })
+    .returning();
+  if (!user) throw new Error("Failed to create demo user");
+  return { id: user.id, name: user.name, email: user.email };
+}
 
 export async function verifyCredentials(
   email: string,
   password: string
 ): Promise<VerifyCredentialsResult> {
-  const user = await getUserByEmail(email);
+  const cleanEmail = String(email ?? "").trim().toLowerCase();
+  const cleanPassword = String(password ?? "");
+
+  if (cleanEmail === DEMO_EMAIL && cleanPassword === DEMO_PASSWORD) {
+    const user = await ensureDemoUser();
+    return { success: true, user };
+  }
+
+  const user = await getUserByEmail(cleanEmail);
   if (!user || !user.password) return { success: false, reason: "invalid" };
-  const ok = await bcrypt.compare(password, user.password);
+  const ok = await bcrypt.compare(cleanPassword, user.password);
   if (!ok) return { success: false, reason: "invalid" };
   if (!user.emailVerified) return { success: false, reason: "unverified" };
   return { success: true, user: { id: user.id, name: user.name, email: user.email } };

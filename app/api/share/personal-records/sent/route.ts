@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getToken } from "next-auth/jwt";
 import { getSharedPersonalRecordsSent } from "@/lib/db/queries";
+import { logError } from "@/lib/logger";
 
 export async function GET(req: NextRequest) {
   try {
@@ -15,7 +16,7 @@ export async function GET(req: NextRequest) {
     const sent = await getSharedPersonalRecordsSent(userId, limit);
     return NextResponse.json(sent);
   } catch (err) {
-    console.error("[share/personal-records/sent]", err);
+    logError("share/personal-records/sent", err);
     return NextResponse.json(
       {
         error: err instanceof Error ? err.message : "Failed to fetch",

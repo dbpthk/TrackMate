@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getToken } from "next-auth/jwt";
 import { deleteSharedPersonalRecord } from "@/lib/db/queries";
+import { logError } from "@/lib/logger";
 
 export async function DELETE(
   req: NextRequest,
@@ -28,7 +29,7 @@ export async function DELETE(
     }
     return NextResponse.json({ success: true });
   } catch (err) {
-    console.error("[share/personal-records DELETE]", err);
+    logError("share/personal-records DELETE", err);
     return NextResponse.json(
       {
         error: err instanceof Error ? err.message : "Failed to delete",

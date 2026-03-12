@@ -7,6 +7,7 @@ import {
   getUserByEmail,
   getBuddiesByUserId,
 } from "@/lib/db/queries";
+import { logError } from "@/lib/logger";
 
 export async function GET(req: NextRequest) {
   const token = await getToken({ req });
@@ -55,7 +56,7 @@ export async function POST(req: NextRequest) {
       { status: 201 }
     );
   } catch (err) {
-    console.error("[buddies POST]", err);
+    logError("buddies POST", err);
     const msg = err instanceof Error ? err.message : "Failed to send request";
     return NextResponse.json({ error: msg }, { status: 500 });
   }

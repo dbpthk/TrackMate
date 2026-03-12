@@ -10,8 +10,14 @@ async function withSignInRateLimit(
   context: { params: Promise<{ nextauth: string[] }> }
 ): Promise<Response> {
   if (req.method === "POST") {
+    const demoSecret = process.env.DEMO_LOGIN_SECRET ?? "";
+    const headerValue = req.headers.get("x-demo-login") ?? "";
+    const isDemoLogin =
+      demoSecret.length > 0 &&
+      headerValue.length > 0 &&
+      headerValue === demoSecret;
     const limiter = getSignInLimiter();
-    if (limiter) {
+    if (limiter && !isDemoLogin) {
       const { success } = await limiter.limit(getIdentifier(req));
       if (!success) {
         return new Response(

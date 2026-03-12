@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import Link from "next/link";
 import { Button } from "./Button";
+import { logError } from "@/lib/logger";
 
 type RouteErrorFallbackProps = {
   error: Error & { digest?: string };
@@ -17,7 +18,7 @@ export function RouteErrorFallback({
   routeName = "this page",
 }: RouteErrorFallbackProps) {
   useEffect(() => {
-    console.error("[RouteError]", routeName, error);
+    logError(`RouteError: ${routeName}`, error);
   }, [error, routeName]);
 
   return (

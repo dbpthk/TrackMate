@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
@@ -22,11 +22,29 @@ export function SignInForm() {
   useEffect(() => {
     const verified = searchParams.get("verified");
     const err = searchParams.get("error");
+    const reason = searchParams.get("reason");
     if (verified === "true") {
       setSuccess("Email verified! You can now sign in.");
     }
     if (err === "Invalid token" || err === "Token expired") {
       setError("Verification link is invalid or expired. Please request a new one.");
+    }
+    if (err === "DemoLoginFailed") {
+      const isDev = process.env.NODE_ENV === "development";
+      setError(
+        isDev && reason
+          ? `Demo login failed (${reason})`
+          : "Demo login failed. Please try again."
+      );
+    }
+  }, [searchParams]);
+
+  const demoAttempted = useRef(false);
+  useEffect(() => {
+    if (demoAttempted.current) return;
+    if (searchParams.get("demo") === "user") {
+      demoAttempted.current = true;
+      window.location.href = "/api/auth/demo-login";
     }
   }, [searchParams]);
 

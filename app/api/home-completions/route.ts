@@ -13,6 +13,7 @@ import {
 } from "@/lib/db/queries";
 import { sanitizeDate, isReasonableDate } from "@/utils/sanitize";
 import { getWeekStartEnd } from "@/lib/home-utils";
+import { logError } from "@/lib/logger";
 
 function jsonError(message: string, status: number) {
   return NextResponse.json({ success: false, error: message }, { status });
@@ -66,7 +67,7 @@ export async function POST(req: NextRequest) {
     await addHomeCompletion(userId, date);
     return NextResponse.json({ success: true, ok: true });
   } catch (err) {
-    console.error("[home-completions POST]", err);
+    logError("home-completions POST", err);
     return jsonError(
       err instanceof Error ? err.message : "Failed to add completion",
       500
@@ -94,7 +95,7 @@ export async function DELETE(req: NextRequest) {
     await removeHomeCompletion(userId, date);
     return NextResponse.json({ success: true, ok: true });
   } catch (err) {
-    console.error("[home-completions DELETE]", err);
+    logError("home-completions DELETE", err);
     return jsonError(
       err instanceof Error ? err.message : "Failed to remove completion",
       500

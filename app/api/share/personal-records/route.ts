@@ -5,6 +5,7 @@ import {
   getSharedPersonalRecordsReceived,
   type SharedPRRecord,
 } from "@/lib/db/queries";
+import { logError } from "@/lib/logger";
 
 function sanitizeRecords(raw: unknown): SharedPRRecord[] {
   if (!Array.isArray(raw)) return [];
@@ -57,7 +58,7 @@ export async function POST(req: NextRequest) {
     await sharePersonalRecordsWithBuddies(userId, validBuddyIds, sanitized);
     return NextResponse.json({ success: true }, { status: 201 });
   } catch (err) {
-    console.error("[share/personal-records]", err);
+    logError("share/personal-records POST", err);
     return NextResponse.json(
       {
         error: err instanceof Error ? err.message : "Failed to share",
@@ -80,7 +81,7 @@ export async function GET(req: NextRequest) {
     const received = await getSharedPersonalRecordsReceived(userId, limit);
     return NextResponse.json(received);
   } catch (err) {
-    console.error("[share/personal-records]", err);
+    logError("share/personal-records GET", err);
     return NextResponse.json(
       {
         error: err instanceof Error ? err.message : "Failed to share",
