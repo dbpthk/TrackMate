@@ -6,7 +6,7 @@ import {
   deleteExercise,
   getWorkoutById,
 } from "@/lib/db/queries";
-import { sanitizeInput, sanitizeInt } from "@/utils/sanitize";
+import { sanitizeInput, sanitizeInt, sanitizeDecimal } from "@/utils/sanitize";
 
 export async function PATCH(
   req: NextRequest,
@@ -48,7 +48,7 @@ export async function PATCH(
   if (name !== undefined) updates.name = sanitizeInput(name, 255);
   if (sets !== undefined) updates.sets = sanitizeInt(sets);
   if (reps !== undefined) updates.reps = sanitizeInt(reps);
-  if (weight !== undefined) updates.weight = sanitizeInt(weight);
+  if (weight !== undefined) updates.weight = sanitizeDecimal(weight);
   if (duration !== undefined) updates.duration = sanitizeInt(duration);
   const updated = await updateExercise(idNum, updates);
   return NextResponse.json(updated);

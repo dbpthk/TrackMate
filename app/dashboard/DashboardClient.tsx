@@ -1,10 +1,23 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { SharePersonalRecordsModal } from "@/components/SharePersonalRecordsModal";
+import { getWeekStartEnd } from "@/lib/home-utils";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
+const SharePersonalRecordsModal = dynamic(
+  () =>
+    import("@/components/SharePersonalRecordsModal").then(
+      (m) => m.SharePersonalRecordsModal
+    ),
+  { ssr: false, loading: () => <p className="text-muted-foreground">Loading…</p> }
+);
 import {
   Dialog,
   DialogContent,
@@ -70,6 +83,83 @@ function getLocalDateString(): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
+function getWeekKey(dateStr: string): string {
+  const d = new Date(dateStr + "T12:00:00");
+  const day = d.getDay();
+  const mondayOffset = day === 0 ? -6 : 1 - day;
+  const monday = new Date(d);
+  monday.setDate(d.getDate() + mondayOffset);
+  return `${monday.getFullYear()}-${String(monday.getMonth() + 1).padStart(2, "0")}-${String(monday.getDate()).padStart(2, "0")}`;
+}
+
+function formatWeekLabel(weekKey: string): string {
+  const mon = new Date(weekKey + "T12:00:00");
+  const sun = new Date(mon);
+  sun.setDate(mon.getDate() + 6);
+  const monStr = mon.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+  const sunStr = sun.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+  return `${monStr} – ${sunStr}`;
+}
+
+type WorkoutItem = {
+  id: number;
+  date: string;
+  type: string;
+  exercises: Array<{
+    id: number;
+    name: string;
+    sets: number | null;
+    reps: number | null;
+    weight: number | null;
+  }>;
+};
+
+function WorkoutListItem({
+  w,
+  onDelete,
+}: {
+  w: WorkoutItem;
+  onDelete: (id: number) => void;
+}) {
+  return (
+    <li className="rounded-lg border border-border bg-surface p-4">
+      <div className="flex items-center justify-between gap-2">
+        <div className="min-w-0 flex-1">
+          <span className="font-medium text-foreground">{w.type}</span>
+          <span className="ml-2 text-sm text-muted-foreground">
+            {formatDate(w.date)}
+          </span>
+        </div>
+        <button
+          type="button"
+          onClick={() => onDelete(w.id)}
+          className="shrink-0 rounded px-2 py-1 text-sm text-muted-foreground hover:bg-red-500/10 hover:text-red-600 dark:hover:text-red-400 focus:outline-none focus:ring-2 focus:ring-primary"
+          aria-label={`Delete workout from ${formatDate(w.date)}`}
+        >
+          Delete
+        </button>
+      </div>
+      {w.exercises && w.exercises.length > 0 && (
+        <ul className="mt-2 space-y-1 text-sm text-muted-foreground">
+          {w.exercises.map((ex) => (
+            <li key={ex.id}>
+              {ex.name}
+              {(ex.sets != null ||
+                ex.reps != null ||
+                ex.weight != null) && (
+                <span className="ml-2">
+                  — {ex.sets ?? "?"}×{ex.reps ?? "?"}
+                  {ex.weight != null ? ` @ ${ex.weight} kg` : ""}
+                </span>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+    </li>
+  );
+}
+
 export function DashboardClient({
   totalWorkouts: totalWorkoutsProp,
   totalVolume,
@@ -90,6 +180,29 @@ export function DashboardClient({
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const deletedIdsRef = useRef<Set<number>>(new Set());
+
+  const { thisWeek, pastByWeek, pastWeekKeys } = useMemo(() => {
+    const start = getWeekStartEnd().start;
+    const end = getWeekStartEnd().end;
+    const thisWk = recentWorkouts.filter(
+      (w) => w.date >= start && w.date <= end
+    );
+    const past = recentWorkouts.filter((w) => w.date < start);
+    const byWeek: Record<string, WorkoutItem[]> = {};
+    for (const w of past) {
+      const key = getWeekKey(w.date);
+      (byWeek[key] ??= []).push(w);
+    }
+    for (const key of Object.keys(byWeek)) {
+      byWeek[key].sort((a, b) => b.date.localeCompare(a.date));
+    }
+    const keys = Object.keys(byWeek).sort((a, b) => b.localeCompare(a));
+    return {
+      thisWeek: thisWk,
+      pastByWeek: byWeek,
+      pastWeekKeys: keys,
+    };
+  }, [recentWorkouts]);
 
   useEffect(() => {
     setTotalWorkouts(totalWorkoutsProp);
@@ -306,9 +419,6 @@ export function DashboardClient({
           <h2 className="mb-4 text-lg font-semibold text-foreground">
             History
           </h2>
-          <h3 className="mb-3 text-base font-medium text-foreground">
-            Recent Workouts
-          </h3>
           {recentWorkouts.length === 0 ? (
             <p className="rounded-lg border border-border bg-surface p-6 text-center text-muted-foreground">
               No workouts yet.{" "}
@@ -321,50 +431,51 @@ export function DashboardClient({
               to get started.
             </p>
           ) : (
-            <ul className="space-y-3">
-              {recentWorkouts.map((w) => (
-                <li
-                  key={w.id}
-                  className="rounded-lg border border-border bg-surface p-4"
-                >
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="min-w-0 flex-1">
-                      <span className="font-medium text-foreground">
-                        {w.type}
-                      </span>
-                      <span className="ml-2 text-sm text-muted-foreground">
-                        {formatDate(w.date)}
-                      </span>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => handleDeleteClick(w.id)}
-                      className="shrink-0 rounded px-2 py-1 text-sm text-muted-foreground hover:bg-red-500/10 hover:text-red-600 dark:hover:text-red-400 focus:outline-none focus:ring-2 focus:ring-primary"
-                      aria-label={`Delete workout from ${formatDate(w.date)}`}
-                    >
-                      Delete
-                    </button>
-                  </div>
-                  {w.exercises && w.exercises.length > 0 && (
-                    <ul className="mt-2 space-y-1 text-sm text-muted-foreground">
-                      {w.exercises.map((ex) => (
-                        <li key={ex.id}>
-                          {ex.name}
-                          {(ex.sets != null ||
-                            ex.reps != null ||
-                            ex.weight != null) && (
-                            <span className="ml-2">
-                              — {ex.sets ?? "?"}×{ex.reps ?? "?"}
-                              {ex.weight != null ? ` @ ${ex.weight} kg` : ""}
-                            </span>
-                          )}
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </li>
-              ))}
-            </ul>
+            <div className="space-y-6">
+              {thisWeek.length > 0 && (
+                <div>
+                  <h3 className="mb-3 text-base font-medium text-foreground">
+                    This Week
+                  </h3>
+                  <ul className="space-y-3">
+                    {thisWeek.map((w) => (
+                      <WorkoutListItem
+                        key={w.id}
+                        w={w}
+                        onDelete={handleDeleteClick}
+                      />
+                    ))}
+                  </ul>
+                </div>
+              )}
+              {pastWeekKeys.length > 0 && (
+                <div>
+                  <h3 className="mb-3 text-base font-medium text-foreground">
+                    Past Weeks
+                  </h3>
+                  <Accordion multiple className="w-full">
+                    {pastWeekKeys.map((weekKey) => (
+                      <AccordionItem key={weekKey} value={weekKey}>
+                        <AccordionTrigger>
+                          Week of {formatWeekLabel(weekKey)}
+                        </AccordionTrigger>
+                        <AccordionContent>
+                          <ul className="space-y-3 pt-1">
+                            {pastByWeek[weekKey].map((w) => (
+                              <WorkoutListItem
+                                key={w.id}
+                                w={w}
+                                onDelete={handleDeleteClick}
+                              />
+                            ))}
+                          </ul>
+                        </AccordionContent>
+                      </AccordionItem>
+                    ))}
+                  </Accordion>
+                </div>
+              )}
+            </div>
           )}
         </section>
       </div>

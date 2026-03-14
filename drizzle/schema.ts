@@ -4,6 +4,7 @@ import {
   varchar,
   text,
   integer,
+  real,
   date,
   jsonb,
   primaryKey,
@@ -128,7 +129,7 @@ export const exercises = pgTable(
     name: varchar("name", { length: 255 }).notNull(),
     sets: integer("sets"),
     reps: integer("reps"),
-    weight: integer("weight"),
+    weight: real("weight"),
     duration: integer("duration"),
   },
   (t) => [index("exercises_workout_id_idx").on(t.workoutId)]

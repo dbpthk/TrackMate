@@ -143,7 +143,7 @@ export function AddWorkoutModal({
           sets: ex.sets ? Math.max(0, Math.floor(Number(ex.sets))) : undefined,
           reps: ex.reps ? Math.max(0, Math.floor(Number(ex.reps))) : undefined,
           weight: ex.weight
-            ? Math.max(0, Math.floor(Number(ex.weight)))
+            ? Math.max(0, Math.round(Number(ex.weight) * 100) / 100)
             : undefined,
         }));
       await onSave({ date, type: t, exercises: payload });

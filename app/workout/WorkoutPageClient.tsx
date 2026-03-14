@@ -1,11 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import dynamic from "next/dynamic";
 import useSWR from "swr";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { WorkoutDayCard } from "@/components/WorkoutDayCard";
-import { AddExerciseModal } from "@/components/AddExerciseModal";
 import { DayMuscleGroupSelector } from "@/components/DayMuscleGroupSelector";
-import { LogWorkoutModal } from "@/components/LogWorkoutModal";
 import {
   Dialog,
   DialogContent,
@@ -23,6 +23,22 @@ import {
 
 const fetcher = (url: string) =>
   fetch(url).then((r) => (r.ok ? r.json() : null));
+
+const AddExerciseModal = dynamic(
+  () => import("@/components/AddExerciseModal").then((m) => m.AddExerciseModal),
+  {
+    ssr: false,
+    loading: () => <p className="text-muted-foreground">Loading…</p>,
+  }
+);
+
+const LogWorkoutModal = dynamic(
+  () => import("@/components/LogWorkoutModal").then((m) => m.LogWorkoutModal),
+  {
+    ssr: false,
+    loading: () => <p className="text-muted-foreground">Loading…</p>,
+  }
+);
 
 type WorkoutDayExerciseWithExercise = {
   id: string;
@@ -74,13 +90,17 @@ export function WorkoutPageClient() {
   const [removeError, setRemoveError] = useState<string | null>(null);
   const [muscleGroupsExpanded, setMuscleGroupsExpanded] = useState(false);
 
+  const searchParams = useSearchParams();
+  const scrollTo = searchParams.get("scrollTo");
+  const pathname = usePathname();
+  const router = useRouter();
   const {
     data: split,
     mutate: mutateSplit,
     isLoading: splitLoading,
   } = useSWR<WorkoutSplit | null>("/api/workout-split", fetcher, {
     revalidateOnFocus: false,
-    dedupingInterval: 60000,
+    dedupingInterval: 300000,
   });
   const {
     data: workouts = [],
@@ -88,10 +108,26 @@ export function WorkoutPageClient() {
     isLoading: workoutsLoading,
   } = useSWR<LoggedWorkout[]>("/api/workouts", fetcher, {
     revalidateOnFocus: false,
-    dedupingInterval: 60000,
+    dedupingInterval: 300000,
   });
 
   const loading = splitLoading || workoutsLoading;
+
+  useEffect(() => {
+    if (!scrollTo || loading || !split) return;
+    const target = document.querySelector(`[data-scroll-target="${scrollTo}"]`);
+    if (target) {
+      const timer = setTimeout(() => {
+        target.scrollIntoView({ behavior: "smooth", block: "start" });
+        // Remove scrollTo from URL so future split updates don't re-trigger scroll
+        const params = new URLSearchParams(searchParams.toString());
+        params.delete("scrollTo");
+        const newUrl = params.toString() ? `${pathname}?${params}` : pathname;
+        router.replace(newUrl, { scroll: false });
+      }, 150);
+      return () => clearTimeout(timer);
+    }
+  }, [scrollTo, loading, split, searchParams, pathname, router]);
 
   const revalidate = () => {
     void mutateSplit();
@@ -122,7 +158,9 @@ export function WorkoutPageClient() {
     } catch (err) {
       mutateSplit(previousSplit, { revalidate: false });
       void mutateSplit();
-      setRemoveError(err instanceof Error ? err.message : "Failed to remove exercise");
+      setRemoveError(
+        err instanceof Error ? err.message : "Failed to remove exercise"
+      );
     }
   };
 
@@ -153,7 +191,9 @@ export function WorkoutPageClient() {
     } catch (err) {
       mutateSplit(previousSplit, { revalidate: false });
       void mutateSplit();
-      setRemoveError(err instanceof Error ? err.message : "Failed to update muscle groups");
+      setRemoveError(
+        err instanceof Error ? err.message : "Failed to update muscle groups"
+      );
     }
   };
 
@@ -219,19 +259,23 @@ export function WorkoutPageClient() {
               )}
             </section>
 
-            <h2 className="text-lg font-semibold text-foreground">
-              Exercises
-            </h2>
+            <h2 className="text-lg font-semibold text-foreground">Exercises</h2>
             {split.workoutDays.map((day) => (
-              <WorkoutDayCard
+              <div
                 key={day.id}
-                dayName={day.dayName}
-                exercises={day.workoutDayExercises}
-                weightLogs={workoutsForDay(workouts, day.dayName)}
-                onAddExercise={() => setAddModalDay(day)}
-                onLogWorkout={() => setLogModalDay(day)}
-                onRemoveExercise={handleRemoveExercise}
-              />
+                data-scroll-target={day.dayOrder}
+                className="scroll-mt-20"
+              >
+                <WorkoutDayCard
+                  key={day.id}
+                  dayName={day.dayName}
+                  exercises={day.workoutDayExercises}
+                  weightLogs={workoutsForDay(workouts, day.dayName)}
+                  onAddExercise={() => setAddModalDay(day)}
+                  onLogWorkout={() => setLogModalDay(day)}
+                  onRemoveExercise={handleRemoveExercise}
+                />
+              </div>
             ))}
           </div>
         )}
@@ -254,7 +298,10 @@ export function WorkoutPageClient() {
           onSave={() => void mutateSplit()}
         />
       )}
-      <Dialog open={!!removeError} onOpenChange={(open) => !open && setRemoveError(null)}>
+      <Dialog
+        open={!!removeError}
+        onOpenChange={(open) => !open && setRemoveError(null)}
+      >
         <DialogContent className="max-w-sm" showCloseButton={true}>
           <DialogHeader>
             <DialogTitle>Could not remove exercise</DialogTitle>

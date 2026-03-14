@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { unstable_cache } from "next/cache";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth-options";
 import {
@@ -17,6 +18,46 @@ export const metadata = {
   title: "Buddies | TrackMate",
 };
 
+const buddiesCacheTag = (userId: number) => `buddies-${userId}`;
+
+async function getBuddiesData(userId: number) {
+  return unstable_cache(
+    async () => {
+      const [
+        buddies,
+        followRequests,
+        sentFollowRequests,
+        acceptedSentRequests,
+        notificationViewedIds,
+        followers,
+        sharedPRs,
+        sharedSent,
+      ] = await Promise.all([
+        getBuddiesWithUsers(userId),
+        getPendingRequestsForUser(userId),
+        getPendingRequestsSentByUser(userId),
+        getAcceptedRequestsSentByUser(userId),
+        getNotificationViewedRecipientIds(userId),
+        getUsersWhoFollowYou(userId),
+        getSharedPersonalRecordsReceived(userId, 20),
+        getSharedPersonalRecordsSent(userId, 20),
+      ]);
+      return {
+        buddies,
+        followRequests,
+        sentFollowRequests,
+        acceptedSentRequests,
+        notificationViewedIds,
+        followers,
+        sharedPRs,
+        sharedSent,
+      };
+    },
+    [`buddies-${userId}`],
+    { revalidate: 60, tags: [buddiesCacheTag(userId)] }
+  )();
+}
+
 export default async function BuddiesPage() {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
@@ -24,7 +65,7 @@ export default async function BuddiesPage() {
   }
   const userId = Number(session.user.id);
 
-  const [
+  const {
     buddies,
     followRequests,
     sentFollowRequests,
@@ -33,16 +74,7 @@ export default async function BuddiesPage() {
     followers,
     sharedPRs,
     sharedSent,
-  ] = await Promise.all([
-    getBuddiesWithUsers(userId),
-    getPendingRequestsForUser(userId),
-    getPendingRequestsSentByUser(userId),
-    getAcceptedRequestsSentByUser(userId),
-    getNotificationViewedRecipientIds(userId),
-    getUsersWhoFollowYou(userId),
-    getSharedPersonalRecordsReceived(userId, 20),
-    getSharedPersonalRecordsSent(userId, 20),
-  ]);
+  } = await getBuddiesData(userId);
 
   const sharedPRsForClient = sharedPRs.map((s) => ({
     ...s,

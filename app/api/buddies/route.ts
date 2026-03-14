@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { revalidateTag } from "next/cache";
 import { getToken } from "next-auth/jwt";
 import { sanitizeInput, sanitizeEmail } from "@/utils/sanitize";
 import {
@@ -51,6 +52,7 @@ export async function POST(req: NextRequest) {
         { status: 400 }
       );
     }
+    revalidateTag(`buddies-${userId}`, "max");
     return NextResponse.json(
       { id: buddyReq.id, message: "Follow request sent" },
       { status: 201 }

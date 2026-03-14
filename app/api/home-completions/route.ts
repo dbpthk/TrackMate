@@ -5,6 +5,7 @@
  * See docs/TIMEZONE.md.
  */
 import { NextRequest, NextResponse } from "next/server";
+import { revalidateTag } from "next/cache";
 import { getToken } from "next-auth/jwt";
 import {
   getHomeCompletions,
@@ -65,6 +66,7 @@ export async function POST(req: NextRequest) {
     }
 
     await addHomeCompletion(userId, date);
+    revalidateTag(`home-${userId}`, "max");
     return NextResponse.json({ success: true, ok: true });
   } catch (err) {
     logError("home-completions POST", err);
@@ -93,6 +95,7 @@ export async function DELETE(req: NextRequest) {
     }
 
     await removeHomeCompletion(userId, date);
+    revalidateTag(`home-${userId}`, "max");
     return NextResponse.json({ success: true, ok: true });
   } catch (err) {
     logError("home-completions DELETE", err);

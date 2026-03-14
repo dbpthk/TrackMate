@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getToken } from "next-auth/jwt";
 import { createExercise, getWorkoutById } from "@/lib/db/queries";
-import { sanitizeInput, sanitizeInt } from "@/utils/sanitize";
+import { sanitizeInput, sanitizeInt, sanitizeDecimal } from "@/utils/sanitize";
 
 export async function POST(req: NextRequest) {
   const token = await getToken({ req });
@@ -34,7 +34,7 @@ export async function POST(req: NextRequest) {
       name: sanitizeInput(name, 255),
       sets: sanitizeInt(sets),
       reps: sanitizeInt(reps),
-      weight: sanitizeInt(weight),
+      weight: sanitizeDecimal(weight),
       duration: sanitizeInt(duration),
     });
     return NextResponse.json(exercise, { status: 201 });

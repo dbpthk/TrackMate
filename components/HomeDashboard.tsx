@@ -87,10 +87,7 @@ export function HomeDashboard({
   }, [clientToday?.weekday, initialWorkoutSplit]);
 
   const suggestedFocus = clientToday
-    ? getTodaysFocus(
-        user.trainingSplit || null,
-        user.preferredDays || null
-      )
+    ? getTodaysFocus(user.trainingSplit || null, user.preferredDays || null)
     : null;
   const dayOptions = getDayOptionsForSplit(user.trainingSplit || null);
   const getDefaultDayType = (todayWk: string | null) => {
@@ -102,10 +99,7 @@ export function HomeDashboard({
         (d) => d.toLowerCase() === todayWk.toLowerCase()
       );
       const focus = todayWk
-        ? getTodaysFocus(
-            user.trainingSplit || null,
-            user.preferredDays || null
-          )
+        ? getTodaysFocus(user.trainingSplit || null, user.preferredDays || null)
         : null;
       const defaultForToday =
         idx >= 0 && initSplit.workoutDays[idx]
@@ -128,10 +122,7 @@ export function HomeDashboard({
   );
   const isRestDay =
     clientToday &&
-    isTodayRestDay(
-      user.trainingSplit || null,
-      user.preferredDays || null
-    );
+    isTodayRestDay(user.trainingSplit || null, user.preferredDays || null);
   const defaultSplitForToday =
     splitDayNames.length > 0 && workoutSplit && clientToday
       ? (() => {
@@ -141,7 +132,7 @@ export function HomeDashboard({
             (d) => d.toLowerCase() === clientToday.weekday.toLowerCase()
           );
           return idx >= 0
-            ? workoutSplit.workoutDays[idx]?.dayName ?? null
+            ? (workoutSplit.workoutDays[idx]?.dayName ?? null)
             : null;
         })()
       : suggestedFocus;
@@ -159,6 +150,16 @@ export function HomeDashboard({
         5
       )
     : [];
+  // Validate against actual split: use real day names and filter to split days only
+  const validatedUpcoming =
+    workoutSplit?.workoutDays?.length
+      ? upcoming
+          .filter((u) => u.dayIndex < workoutSplit.workoutDays.length)
+          .map((u) => ({
+            ...u,
+            type: workoutSplit.workoutDays[u.dayIndex].dayName,
+          }))
+      : upcoming;
   const weekDates = clientToday ? getWeekDates() : [];
   const weekCompleted = weekDates.filter((d) => {
     if (!completedDates.has(d.date)) return false;
@@ -218,15 +219,15 @@ export function HomeDashboard({
       const res = await fetch("/api/workout-split");
       if (res.ok) {
         const data = await res.json();
-        const names = data?.workoutDays?.map((d: { dayName: string }) => d.dayName) ?? [];
+        const names =
+          data?.workoutDays?.map((d: { dayName: string }) => d.dayName) ?? [];
         setSplitDayNames(names);
         setWorkoutSplit(data);
         setSelectedDayType((prev) => {
           if (names.length === 0) return prev;
           const todayWk = clientToday?.weekday;
           const preferredIdx =
-            todayWk &&
-            user.preferredDays
+            todayWk && user.preferredDays
               ? user.preferredDays
                   .split(/[,\s]+/)
                   .filter(Boolean)
@@ -244,7 +245,9 @@ export function HomeDashboard({
           return names[0];
         });
         if (names.length > 0) {
-          setSelectedSplitType((prev) => (prev && names.includes(prev) ? prev : names[0]));
+          setSelectedSplitType((prev) =>
+            prev && names.includes(prev) ? prev : names[0]
+          );
         }
       }
     };
@@ -263,9 +266,10 @@ export function HomeDashboard({
 
   const firstName = user.name?.split(/\s+/)[0] || "there";
 
-  const availableDayOptions = splitDayNames.length > 0
-    ? splitDayNames.map((name) => ({ value: name, label: name }))
-    : dayOptions;
+  const availableDayOptions =
+    splitDayNames.length > 0
+      ? splitDayNames.map((name) => ({ value: name, label: name }))
+      : dayOptions;
 
   return (
     <>
@@ -289,7 +293,8 @@ export function HomeDashboard({
               <div className="flex items-center justify-between text-sm">
                 <span className="text-muted-foreground">Weekly progress</span>
                 <span className="font-medium text-foreground">
-                  {clientToday ? `${weekCompleted}/${totalWeekDays}` : "—/—"} sessions
+                  {clientToday ? `${weekCompleted}/${totalWeekDays}` : "—/—"}{" "}
+                  sessions
                 </span>
               </div>
               <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-surface-muted">
@@ -314,7 +319,8 @@ export function HomeDashboard({
                   <p className="text-muted-foreground">Loading…</p>
                 ) : isRestDay ? (
                   <p className="text-muted-foreground">
-                    Rest day — enjoy your recovery. No workout scheduled for today.
+                    Rest day — enjoy your recovery. No workout scheduled for
+                    today.
                   </p>
                 ) : todaysFocus ? (
                   <>
@@ -331,9 +337,7 @@ export function HomeDashboard({
                           <select
                             id="home-day-select"
                             value={selectedDayType}
-                            onChange={(e) =>
-                              setSelectedDayType(e.target.value)
-                            }
+                            onChange={(e) => setSelectedDayType(e.target.value)}
                             className="w-full rounded-lg border border-border bg-surface px-4 py-3 text-base text-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                           >
                             {availableDayOptions.map((opt) => (
@@ -374,8 +378,8 @@ export function HomeDashboard({
                               { method: "DELETE" }
                             ).then(async (res) => {
                               if (!res.ok) {
-                                setCompletedDates((prev) =>
-                                  new Set([...prev, todayDate])
+                                setCompletedDates(
+                                  (prev) => new Set([...prev, todayDate])
                                 );
                                 void fetchWorkouts();
                                 return;
@@ -391,18 +395,17 @@ export function HomeDashboard({
                                       (!w.exercises || w.exercises.length === 0)
                                   );
                                   if (empty?.id) {
-                                    await fetch(
-                                      `/api/workouts/${empty.id}`,
-                                      { method: "DELETE" }
-                                    );
+                                    await fetch(`/api/workouts/${empty.id}`, {
+                                      method: "DELETE",
+                                    });
                                   }
                                 }
                                 void fetchWorkouts();
                               }
                             });
                           } else {
-                            setCompletedDates((prev) =>
-                              new Set([...prev, todayDate])
+                            setCompletedDates(
+                              (prev) => new Set([...prev, todayDate])
                             );
                             const workoutType = todayWorkout
                               ? todayWorkout.type
@@ -527,10 +530,13 @@ export function HomeDashboard({
             <div className="flex gap-2 overflow-x-auto pb-2">
               {weekDates.map(({ date, weekday }) => {
                 const done = completedDates.has(date);
-                const workoutForDate = workouts.find((w) => w.date === date);
-                const isRestDay = workoutForDate?.type === "Rest Day";
+                const workoutsForDate = workouts.filter((w) => w.date === date);
+                const isRestDay = workoutsForDate.some(
+                  (w) => w.type === "Rest Day"
+                );
                 const isToday = date === todayDate;
                 const isSelected = selectedWeekDate === date;
+                const symbol = done ? (isRestDay ? "✕" : "✓") : "—";
                 return (
                   <button
                     key={date}
@@ -539,13 +545,15 @@ export function HomeDashboard({
                       setSelectedWeekDate((prev) =>
                         prev === date ? null : date
                       );
-                      if (splitDayNames.length > 0 && selectedWeekDate !== date) {
+                      if (
+                        splitDayNames.length > 0 &&
+                        selectedWeekDate !== date
+                      ) {
                         const preferredDaysList =
                           user.preferredDays?.split(/[,\s]+/).filter(Boolean) ??
                           [];
                         const preferredIdx = preferredDaysList.findIndex(
-                          (d) =>
-                            d.toLowerCase() === weekday.toLowerCase()
+                          (d) => d.toLowerCase() === weekday.toLowerCase()
                         );
                         if (
                           preferredIdx >= 0 &&
@@ -573,9 +581,7 @@ export function HomeDashboard({
                     <span className="text-xs font-medium text-muted-foreground">
                       {weekday.slice(0, 2)}
                     </span>
-                    <span className="mt-1 text-lg">
-                      {done ? (isRestDay ? "✕" : "✓") : "—"}
-                    </span>
+                    <span className="mt-1 text-lg">{symbol}</span>
                   </button>
                 );
               })}
@@ -589,10 +595,12 @@ export function HomeDashboard({
                     {weekDates.find((d) => d.date === selectedWeekDate)
                       ?.weekday ?? ""}{" "}
                     (
-                    {new Date(selectedWeekDate + "T12:00:00").toLocaleDateString(
-                      undefined,
-                      { month: "short", day: "numeric" }
-                    )}
+                    {new Date(
+                      selectedWeekDate + "T12:00:00"
+                    ).toLocaleDateString(undefined, {
+                      month: "short",
+                      day: "numeric",
+                    })}
                     )
                   </CardTitle>
                 </CardHeader>
@@ -622,6 +630,7 @@ export function HomeDashboard({
                     type="button"
                     onClick={async () => {
                       if (!selectedWeekDate || !selectedSplitType) return;
+                      if (selectedWeekDate > todayDate) return;
                       setCompleting(true);
                       try {
                         const day = workoutSplit.workoutDays.find(
@@ -643,6 +652,7 @@ export function HomeDashboard({
                             date: selectedWeekDate,
                             type: selectedSplitType,
                             exercises,
+                            replaceForDate: true,
                           }),
                         });
                         if (res.ok) {
@@ -662,7 +672,7 @@ export function HomeDashboard({
                         setCompleting(false);
                       }
                     }}
-                    disabled={completing}
+                    disabled={completing || selectedWeekDate > todayDate}
                     className="w-full"
                   >
                     {completing ? "Saving…" : "Mark as completed"}
@@ -673,18 +683,18 @@ export function HomeDashboard({
           </section>
 
           {/* 4. Upcoming Workouts */}
-          {upcoming.length > 0 && (
+          {validatedUpcoming.length > 0 && (
             <section aria-label="Upcoming workouts">
               <h2 className="mb-3 text-lg font-semibold text-foreground">
                 Upcoming
               </h2>
               <div className="flex gap-3 overflow-x-auto pb-2">
-                {upcoming.map(({ date, weekday, type }) => {
+                {validatedUpcoming.map(({ date, weekday, type, dayIndex }) => {
                   const done = completedDates.has(date);
                   return (
                     <Link
                       key={date}
-                      href="/workout"
+                      href={`/workout?scrollTo=${dayIndex}`}
                       className={`flex min-w-[8rem] flex-col rounded-lg border p-4 shadow-sm transition-all hover:shadow-md ${
                         done
                           ? "border-primary/30 bg-primary/5"

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { revalidateTag } from "next/cache";
 import { getToken } from "next-auth/jwt";
 import { removeBuddy, getBuddiesByUserId } from "@/lib/db/queries";
 
@@ -26,5 +27,7 @@ export async function DELETE(
   }
 
   await removeBuddy(userId, buddyIdNum);
+  revalidateTag(`buddies-${userId}`, "max");
+  revalidateTag(`buddies-${buddyIdNum}`, "max");
   return new NextResponse(null, { status: 204 });
 }

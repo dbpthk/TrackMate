@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { revalidateTag } from "next/cache";
 import { getToken } from "next-auth/jwt";
 import {
   getNotificationViewedRecipientIds,
@@ -33,5 +34,6 @@ export async function POST(req: NextRequest) {
   }
 
   await markNotificationViewed(userId, recipientId);
+  revalidateTag(`buddies-${userId}`, "max");
   return NextResponse.json({ ok: true });
 }

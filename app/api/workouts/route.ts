@@ -4,10 +4,12 @@ import { revalidateTag, revalidatePath } from "next/cache";
 import {
   getWorkoutsWithExercisesByUserId,
   createOrUpdateWorkoutWithExercises,
+  deleteWorkoutsForDate,
 } from "@/lib/db/queries";
 import {
   sanitizeInput,
   sanitizeInt,
+  sanitizeDecimal,
   sanitizeDate,
   isReasonableDate,
 } from "@/utils/sanitize";
@@ -31,7 +33,7 @@ export async function POST(req: NextRequest) {
   const userId = Number(token.id);
 
   const body = await req.json();
-  const { date, type, exercises: exercisesInput } = body ?? {};
+  const { date, type, exercises: exercisesInput, replaceForDate } = body ?? {};
   if (!date || !type) {
     return NextResponse.json(
       { error: "Date and type required" },
@@ -57,10 +59,13 @@ export async function POST(req: NextRequest) {
         name: sanitizeInput(ex?.name, 255),
         sets: sanitizeInt(ex?.sets),
         reps: sanitizeInt(ex?.reps),
-        weight: sanitizeInt(ex?.weight),
+        weight: sanitizeDecimal(ex?.weight),
       }))
     : [];
   try {
+    if (replaceForDate === true) {
+      await deleteWorkoutsForDate(userId, dateStr);
+    }
     const result = await createOrUpdateWorkoutWithExercises({
       userId,
       date: dateStr,
@@ -68,6 +73,7 @@ export async function POST(req: NextRequest) {
       exercises,
     });
     revalidateTag(`dashboard-${userId}`, "max");
+    revalidateTag(`home-${userId}`, "max");
     revalidatePath("/dashboard");
     return NextResponse.json(result, { status: 201 });
   } catch (err) {

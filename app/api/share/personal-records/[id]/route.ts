@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { revalidateTag } from "next/cache";
 import { getToken } from "next-auth/jwt";
 import { deleteSharedPersonalRecord } from "@/lib/db/queries";
 import { logError } from "@/lib/logger";
@@ -20,12 +21,16 @@ export async function DELETE(
       return NextResponse.json({ error: "Invalid id" }, { status: 400 });
     }
 
-    const ok = await deleteSharedPersonalRecord(idNum, userId);
-    if (!ok) {
+    const result = await deleteSharedPersonalRecord(idNum, userId);
+    if (!result.ok) {
       return NextResponse.json(
         { error: "Share not found or you cannot delete it" },
         { status: 404 }
       );
+    }
+    revalidateTag(`buddies-${userId}`, "max");
+    if (result.recipientId && result.recipientId !== userId) {
+      revalidateTag(`buddies-${result.recipientId}`, "max");
     }
     return NextResponse.json({ success: true });
   } catch (err) {

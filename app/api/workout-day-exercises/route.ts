@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { revalidateTag } from "next/cache";
 import { getToken } from "next-auth/jwt";
 import {
   addExerciseToWorkoutDay,
@@ -35,6 +36,7 @@ export async function POST(req: NextRequest) {
       typeof sets === "number" ? sets : undefined,
       typeof reps === "string" ? reps : undefined
     );
+    revalidateTag(`home-${userId}`, "max");
     return NextResponse.json(result, { status: 201 });
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Failed to add exercise";
@@ -59,6 +61,7 @@ export async function DELETE(req: NextRequest) {
   }
   try {
     await removeExerciseFromWorkoutDay(id, userId);
+    revalidateTag(`home-${userId}`, "max");
     return NextResponse.json({ ok: true });
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Failed to remove";

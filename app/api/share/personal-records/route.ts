@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { revalidateTag } from "next/cache";
 import { getToken } from "next-auth/jwt";
 import {
   sharePersonalRecordsWithBuddies,
@@ -56,6 +57,10 @@ export async function POST(req: NextRequest) {
       );
     }
     await sharePersonalRecordsWithBuddies(userId, validBuddyIds, sanitized);
+    revalidateTag(`buddies-${userId}`, "max");
+    for (const buddyId of validBuddyIds) {
+      revalidateTag(`buddies-${buddyId}`, "max");
+    }
     return NextResponse.json({ success: true }, { status: 201 });
   } catch (err) {
     logError("share/personal-records POST", err);

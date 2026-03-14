@@ -1,0 +1,1 @@
+ALTER TABLE "exercises" ALTER COLUMN "weight" SET DATA TYPE real;

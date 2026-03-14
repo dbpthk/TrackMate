@@ -37,6 +37,15 @@ const toInt = (n: unknown): number | undefined =>
   n === null || n === undefined
     ? undefined
     : Math.max(0, Math.floor(Number(n)));
+const toDecimal = (n: unknown, decimals = 2): number | undefined =>
+  n === null || n === undefined
+    ? undefined
+    : (() => {
+        const num = Number(n);
+        if (!Number.isFinite(num) || num < 0) return undefined;
+        const factor = 10 ** decimals;
+        return Math.round(num * factor) / factor;
+      })();
 const toDate = (d: string | Date): string =>
   d instanceof Date ? d.toISOString().slice(0, 10) : String(d).slice(0, 10);
 const isValidEmail = (e: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trim(e));
@@ -355,6 +364,19 @@ export async function deleteWorkout(id: number): Promise<void> {
   await db.delete(workouts).where(eq(workouts.id, id));
 }
 
+/** Delete all workouts for a user on a given date. Used when replacing day log. */
+export async function deleteWorkoutsForDate(
+  userId: number,
+  date: string
+): Promise<void> {
+  const dateStr = toDate(date);
+  await db
+    .delete(workouts)
+    .where(
+      and(eq(workouts.userId, userId), eq(workouts.date, dateStr))
+    );
+}
+
 // --- Home completions (explicit "marked done" on home page, separate from logging workouts) ---
 export async function getHomeCompletions(
   userId: number,
@@ -458,7 +480,7 @@ export async function createOrUpdateWorkoutWithExercises(
           name,
           sets: toInt(ex.sets),
           reps: toInt(ex.reps),
-          weight: toInt(ex.weight),
+          weight: toDecimal(ex.weight),
         })
         .returning();
       if (inserted) createdExercises.push(inserted);
@@ -487,7 +509,7 @@ export async function createExercise(
       name: trim(input.name),
       sets: toInt(input.sets),
       reps: toInt(input.reps),
-      weight: toInt(input.weight),
+      weight: toDecimal(input.weight),
       duration: toInt(input.duration),
     })
     .returning();
@@ -524,7 +546,7 @@ export async function updateExercise(
   if (input.name !== undefined) updates.name = trim(input.name);
   if (input.sets !== undefined) updates.sets = toInt(input.sets);
   if (input.reps !== undefined) updates.reps = toInt(input.reps);
-  if (input.weight !== undefined) updates.weight = toInt(input.weight);
+  if (input.weight !== undefined) updates.weight = toDecimal(input.weight);
   if (input.duration !== undefined) updates.duration = toInt(input.duration);
   if (Object.keys(updates).length === 0) return getExerciseById(id);
   const [ex] = await db
@@ -805,6 +827,21 @@ export async function markNotificationViewed(
     });
 }
 
+/** Get buddy request by ID for cache revalidation. Returns null if not found. */
+export async function getBuddyRequestById(
+  requestId: number
+): Promise<{ requesterId: number; recipientId: number } | null> {
+  const [req] = await db
+    .select({
+      requesterId: buddyRequests.requesterId,
+      recipientId: buddyRequests.recipientId,
+    })
+    .from(buddyRequests)
+    .where(eq(buddyRequests.id, requestId))
+    .limit(1);
+  return req ?? null;
+}
+
 export async function cancelBuddyRequest(
   requestId: number,
   requesterId: number
@@ -983,9 +1020,9 @@ export async function getSharedPersonalRecordsSent(
 export async function deleteSharedPersonalRecord(
   id: number,
   sharerId: number
-): Promise<boolean> {
+): Promise<{ ok: boolean; recipientId?: number }> {
   const [row] = await db
-    .select()
+    .select({ recipientId: sharedPersonalRecords.recipientId })
     .from(sharedPersonalRecords)
     .where(
       and(
@@ -994,9 +1031,9 @@ export async function deleteSharedPersonalRecord(
       )
     )
     .limit(1);
-  if (!row) return false;
+  if (!row) return { ok: false };
   await db.delete(sharedPersonalRecords).where(eq(sharedPersonalRecords.id, id));
-  return true;
+  return { ok: true, recipientId: row.recipientId };
 }
 
 export async function getBuddyWorkouts(
@@ -1322,15 +1359,13 @@ export async function getWorkoutFrequency(
 }
 
 export async function getRecentWorkouts(
-  userId: number,
-  limit = 10
+  userId: number
 ): Promise<(Workout & { exercises: Exercise[] })[]> {
   const userWorkouts = await db
     .select()
     .from(workouts)
     .where(eq(workouts.userId, userId))
-    .orderBy(desc(workouts.date))
-    .limit(limit);
+    .orderBy(desc(workouts.date));
   if (userWorkouts.length === 0) return [];
   const workoutIds = userWorkouts.map((w) => w.id);
   const allExercises = await db

@@ -18,11 +18,23 @@ export function sanitizeInput(str: unknown, maxLength = 255): string {
   return String(str ?? "").trim().slice(0, maxLength);
 }
 
-/** Non-negative integer for sets, reps, weight, duration */
+/** Non-negative integer for sets, reps, duration */
 export function sanitizeInt(val: unknown): number | undefined {
   if (val === null || val === undefined || val === "") return undefined;
   const n = Math.floor(Number(val));
   return Number.isFinite(n) && n >= 0 ? n : undefined;
+}
+
+/** Non-negative decimal for weight, rounded to 2 places */
+export function sanitizeDecimal(
+  val: unknown,
+  maxDecimals = 2
+): number | undefined {
+  if (val === null || val === undefined || val === "") return undefined;
+  const n = Number(val);
+  if (!Number.isFinite(n) || n < 0) return undefined;
+  const factor = 10 ** maxDecimals;
+  return Math.round(n * factor) / factor;
 }
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;

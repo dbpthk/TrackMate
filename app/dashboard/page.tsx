@@ -41,7 +41,7 @@ async function getDashboardData(userId: number) {
     getMuscleDistributionFromExercises(userId),
     getStrengthProgress(userId, undefined, 30),
     getWorkoutFrequency(userId, 12),
-    getRecentWorkouts(userId, 10),
+    getRecentWorkouts(userId),
     getVolumeByDate(userId),
     getVolumeByWeek(userId),
   ]);

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { revalidateTag } from "next/cache";
 import { getToken } from "next-auth/jwt";
 import { updateUser } from "@/lib/db/queries";
 import type { UpdateUserInput } from "@/lib/db/queries";
@@ -77,6 +78,13 @@ export async function PATCH(req: NextRequest) {
 
     if (!user) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
+
+    if (
+      updates.trainingSplit !== undefined ||
+      updates.preferredDays !== undefined
+    ) {
+      revalidateTag(`home-${userId}`, "max");
     }
 
     return NextResponse.json({

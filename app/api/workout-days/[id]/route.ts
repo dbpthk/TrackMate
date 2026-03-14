@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { revalidateTag } from "next/cache";
 import { getToken } from "next-auth/jwt";
 import { updateWorkoutDayMuscleGroups } from "@/lib/db/queries";
 import { isValidUuid } from "@/utils/sanitize";
@@ -33,5 +34,6 @@ export async function PATCH(
   if (!updated) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
+  revalidateTag(`home-${userId}`, "max");
   return NextResponse.json(updated);
 }

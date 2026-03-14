@@ -46,9 +46,11 @@ export function ExerciseInputRow({
 
   const update = (field: keyof ExerciseInput, val: string) => {
     const next = { ...value, [field]: val };
-    if (field === "sets" || field === "reps" || field === "weight") {
+    if (field === "sets" || field === "reps") {
       const num = val === "" ? "" : String(Math.max(0, Math.floor(Number(val) || 0)));
       next[field] = num;
+    } else if (field === "weight") {
+      next[field] = val;
     }
     onChange(next);
   };
@@ -90,6 +92,7 @@ export function ExerciseInputRow({
         label="Weight (kg)"
         type="number"
         min={0}
+        step={0.01}
         value={value.weight}
         onChange={(e) => update("weight", e.target.value)}
         placeholder={suggestion?.weight != null ? String(suggestion.weight) : "—"}

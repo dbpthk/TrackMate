@@ -78,6 +78,8 @@ export async function PATCH(
     return NextResponse.json({ ...workout, exercises });
   }
   const updated = await updateWorkout(idNum, updates);
+  revalidateTag(`dashboard-${userId}`, "max");
+  revalidateTag(`home-${userId}`, "max");
   const exercises = await getExercisesByWorkoutId(idNum);
   return NextResponse.json({ ...updated, exercises });
 }
@@ -110,6 +112,7 @@ export async function DELETE(
 
   await deleteWorkout(idNum);
   revalidateTag(`dashboard-${userId}`, "max");
+  revalidateTag(`home-${userId}`, "max");
   revalidatePath("/dashboard");
   return new NextResponse(null, { status: 204 });
 }

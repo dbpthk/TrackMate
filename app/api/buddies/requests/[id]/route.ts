@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
+import { revalidateTag } from "next/cache";
 import { getToken } from "next-auth/jwt";
 import {
   acceptBuddyRequest,
   rejectBuddyRequest,
   cancelBuddyRequest,
+  getBuddyRequestById,
 } from "@/lib/db/queries";
 
 export async function PATCH(
@@ -23,6 +25,8 @@ export async function PATCH(
 
   const body = await req.json();
   const { action } = body ?? {};
+  const requestMeta = await getBuddyRequestById(idNum);
+
   if (action === "accept") {
     const ok = await acceptBuddyRequest(idNum, userId);
     if (!ok) {
@@ -30,6 +34,10 @@ export async function PATCH(
         { error: "Request not found or already handled" },
         { status: 404 }
       );
+    }
+    revalidateTag(`buddies-${userId}`, "max");
+    if (requestMeta?.requesterId && requestMeta.requesterId !== userId) {
+      revalidateTag(`buddies-${requestMeta.requesterId}`, "max");
     }
     return NextResponse.json({
       success: true,
@@ -44,6 +52,10 @@ export async function PATCH(
         { status: 404 }
       );
     }
+    revalidateTag(`buddies-${userId}`, "max");
+    if (requestMeta?.requesterId && requestMeta.requesterId !== userId) {
+      revalidateTag(`buddies-${requestMeta.requesterId}`, "max");
+    }
     return NextResponse.json({
       success: true,
       message: "Request rejected",
@@ -56,6 +68,10 @@ export async function PATCH(
         { error: "Request not found or already handled" },
         { status: 404 }
       );
+    }
+    revalidateTag(`buddies-${userId}`, "max");
+    if (requestMeta?.recipientId && requestMeta.recipientId !== userId) {
+      revalidateTag(`buddies-${requestMeta.recipientId}`, "max");
     }
     return NextResponse.json({
       success: true,

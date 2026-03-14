@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { revalidateTag } from "next/cache";
 import { getToken } from "next-auth/jwt";
 import { followBack } from "@/lib/db/queries";
 
@@ -22,5 +23,7 @@ export async function POST(req: NextRequest) {
       { status: 400 }
     );
   }
+  revalidateTag(`buddies-${userId}`, "max");
+  revalidateTag(`buddies-${targetId}`, "max");
   return NextResponse.json({ success: true, message: "Followed back" });
 }

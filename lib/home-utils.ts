@@ -144,7 +144,7 @@ export function getUpcomingWorkouts(
   trainingSplit: string | null,
   preferredDays: string | null,
   count: number
-): { date: string; weekday: string; type: string }[] {
+): { date: string; weekday: string; type: string; dayIndex: number }[] {
   const normalized = normalizeProfileSplit(trainingSplit);
   if (!normalized || !preferredDays || !(normalized in TRAINING_SPLIT_DETAILS)) {
     return [];
@@ -152,7 +152,7 @@ export function getUpcomingWorkouts(
   const details = TRAINING_SPLIT_DETAILS[normalized as keyof typeof TRAINING_SPLIT_DETAILS];
   const days = preferredDays.split(/[,\s]+/).filter(Boolean);
   const today = new Date();
-  const result: { date: string; weekday: string; type: string }[] = [];
+  const result: { date: string; weekday: string; type: string; dayIndex: number }[] = [];
   let dayIdx = 0;
   const seen = new Set<string>();
 
@@ -170,6 +170,7 @@ export function getUpcomingWorkouts(
           date: dateStr,
           weekday: wd,
           type,
+          dayIndex: preferredIdx,
         });
       }
     }
