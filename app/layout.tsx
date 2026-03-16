@@ -27,9 +27,52 @@ const themeScript = `
 })();
 `;
 
+const siteUrl =
+  process.env.NEXT_PUBLIC_SITE_URL ||
+  process.env.NEXT_PUBLIC_APP_URL ||
+  "https://trackmate.app";
+
 export const metadata: Metadata = {
-  title: "TrackMate",
-  description: "Your workout companion — track splits, log progress, hit PRs.",
+  metadataBase: new URL(siteUrl),
+  title: "TrackMate — Free Workout Tracker",
+  description:
+    "Track workouts, build splits, hit PRs, and stay consistent. Free fitness tracker for splits, progress, and workout buddies.",
+  keywords: [
+    "workout tracker",
+    "fitness app",
+    "workout split",
+    "gym log",
+    "personal records",
+    "free workout app",
+  ],
+  authors: [{ name: "TrackMate", url: siteUrl }],
+  creator: "TrackMate",
+  openGraph: {
+    type: "website",
+    locale: "en_US",
+    url: siteUrl,
+    siteName: "TrackMate",
+    title: "TrackMate — Free Workout Tracker",
+    description:
+      "Track workouts, build splits, hit PRs. Free fitness tracker for splits, progress, and workout buddies.",
+    images: [
+      {
+        url: "/opengraph-image",
+        width: 1200,
+        height: 630,
+        alt: "TrackMate — Your Workout Companion",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "TrackMate — Free Workout Tracker",
+    description:
+      "Track workouts, build splits, hit PRs. Free fitness tracker.",
+    images: ["/opengraph-image"],
+  },
+  robots: { index: true, follow: true },
+  alternates: { canonical: siteUrl },
 };
 
 export default async function RootLayout({
@@ -42,6 +85,20 @@ export default async function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning className={cn("font-sans", geist.variable)}>
       <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              "@context": "https://schema.org",
+              "@type": "WebApplication",
+              name: "TrackMate",
+              description:
+                "Free workout tracker for splits, progress, and workout buddies.",
+              url: siteUrl,
+              applicationCategory: "HealthApplication",
+            }),
+          }}
+          type="application/ld+json"
+        />
         <script
           dangerouslySetInnerHTML={{ __html: themeScript }}
           suppressHydrationWarning
