@@ -111,7 +111,7 @@ export function WorkoutPageClient() {
     dedupingInterval: 300000,
   });
 
-  const loading = splitLoading || workoutsLoading;
+  const loading = splitLoading;
 
   useEffect(() => {
     if (!scrollTo || loading || !split) return;
