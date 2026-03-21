@@ -60,8 +60,14 @@ export function LogWorkoutModal({
           e,
         ])
       );
+      const sorted = [...exercises].sort((a, b) => {
+        if (a.muscleGroup !== b.muscleGroup) {
+          return a.muscleGroup.localeCompare(b.muscleGroup);
+        }
+        return a.name.localeCompare(b.name);
+      });
       setEntries(
-        exercises.map((ex) => {
+        sorted.map((ex) => {
           const existing = existingByName.get(ex.name.trim().toLowerCase());
           return {
             exerciseId: ex.id,
