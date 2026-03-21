@@ -1,0 +1,1 @@
+ALTER TABLE "home_completions" ADD COLUMN "type" varchar(100);

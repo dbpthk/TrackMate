@@ -285,6 +285,7 @@ export const homeCompletions = pgTable(
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
     date: date("date").notNull(),
+    type: varchar("type", { length: 100 }),
   },
   (t) => [
     primaryKey({ columns: [t.userId, t.date] }),

@@ -36,6 +36,7 @@ type HomeDashboardProps = {
   weekWorkouts: WorkoutWithExercises[];
   todayWorkout: WorkoutWithExercises | null;
   completedDates: string[];
+  initialCompletionTypes?: Record<string, string | null>;
   initialWorkoutSplit?: WorkoutSplitData | null;
 };
 
@@ -44,6 +45,7 @@ export function HomeDashboard({
   weekWorkouts,
   todayWorkout: initialTodayWorkout,
   completedDates: initialCompletedDates,
+  initialCompletionTypes = {},
   initialWorkoutSplit,
 }: HomeDashboardProps) {
   const [workouts, setWorkouts] = useState(weekWorkouts);
@@ -51,6 +53,9 @@ export function HomeDashboard({
   const [completedDates, setCompletedDates] = useState(
     () => new Set(initialCompletedDates)
   );
+  const [completionTypes, setCompletionTypes] = useState<
+    Record<string, string | null>
+  >(() => ({ ...initialCompletionTypes }));
   const [quoteIndex, setQuoteIndex] = useState(0);
   const initialNames =
     initialWorkoutSplit?.workoutDays?.map((d) => d.dayName) ?? [];
@@ -185,8 +190,18 @@ export function HomeDashboard({
       setTodayWorkout(today ?? null);
     }
     if (completionsRes.ok) {
-      const { dates } = await completionsRes.json();
-      setCompletedDates(new Set(dates ?? []));
+      const data = await completionsRes.json();
+      const dates = data?.dates ?? [];
+      const completions = data?.completions ?? [];
+      setCompletedDates(new Set(dates));
+      setCompletionTypes(
+        Object.fromEntries(
+          completions.map((c: { date: string; type?: string | null }) => [
+            c.date,
+            c.type ?? null,
+          ])
+        )
+      );
     }
   }, []);
 
@@ -203,7 +218,8 @@ export function HomeDashboard({
     if (hasInitialSync.current) return;
     hasInitialSync.current = true;
     setCompletedDates(new Set(initialCompletedDates));
-  }, [initialCompletedDates]);
+    setCompletionTypes((prev) => ({ ...initialCompletionTypes, ...prev }));
+  }, [initialCompletedDates, initialCompletionTypes]);
 
   useEffect(() => {
     const id = setInterval(
@@ -369,6 +385,11 @@ export function HomeDashboard({
                               next.delete(todayDate);
                               return next;
                             });
+                            setCompletionTypes((prev) => {
+                              const next = { ...prev };
+                              delete next[todayDate];
+                              return next;
+                            });
                             const hadEmptyWorkout =
                               todayWorkout &&
                               (!todayWorkout.exercises ||
@@ -404,12 +425,16 @@ export function HomeDashboard({
                               }
                             });
                           } else {
-                            setCompletedDates(
-                              (prev) => new Set([...prev, todayDate])
-                            );
                             const workoutType = todayWorkout
                               ? todayWorkout.type
                               : todaysFocus || selectedDayType;
+                            setCompletedDates(
+                              (prev) => new Set([...prev, todayDate])
+                            );
+                            setCompletionTypes((prev) => ({
+                              ...prev,
+                              [todayDate]: workoutType ?? null,
+                            }));
                             if (!todayWorkout && workoutType) {
                               const optimistic: WorkoutWithExercises = {
                                 id: -1,
@@ -457,7 +482,10 @@ export function HomeDashboard({
                                   headers: {
                                     "Content-Type": "application/json",
                                   },
-                                  body: JSON.stringify({ date: todayDate }),
+                                  body: JSON.stringify({
+                                    date: todayDate,
+                                    type: workoutType,
+                                  }),
                                 }).then((cRes) => {
                                   if (!cRes.ok) void fetchWorkouts();
                                 });
@@ -469,7 +497,10 @@ export function HomeDashboard({
                                 headers: {
                                   "Content-Type": "application/json",
                                 },
-                                body: JSON.stringify({ date: todayDate }),
+                                body: JSON.stringify({
+                                  date: todayDate,
+                                  type: workoutType,
+                                }),
                               }).then((res) => {
                                 if (!res.ok) {
                                   setCompletedDates((prev) => {
@@ -530,10 +561,15 @@ export function HomeDashboard({
             <div className="flex gap-2 overflow-x-auto pb-2">
               {weekDates.map(({ date, weekday }) => {
                 const done = completedDates.has(date);
+                const completionType = completionTypes[date];
                 const workoutsForDate = workouts.filter((w) => w.date === date);
-                const isRestDay = workoutsForDate.some(
+                const isRestDayFromWorkouts = workoutsForDate.some(
                   (w) => w.type === "Rest Day"
                 );
+                const isRestDay =
+                  completionType != null
+                    ? completionType === "Rest Day"
+                    : isRestDayFromWorkouts;
                 const isToday = date === todayDate;
                 const isSelected = selectedWeekDate === date;
                 const symbol = done ? (isRestDay ? "✕" : "✓") : "—";
@@ -626,57 +662,81 @@ export function HomeDashboard({
                       ))}
                     </select>
                   </div>
-                  <Button
-                    type="button"
-                    onClick={async () => {
-                      if (!selectedWeekDate || !selectedSplitType) return;
-                      if (selectedWeekDate > todayDate) return;
-                      setCompleting(true);
-                      try {
-                        const day = workoutSplit.workoutDays.find(
-                          (d) => d.dayName === selectedSplitType
-                        );
-                        const exercises =
-                          day?.workoutDayExercises?.map((we) => ({
-                            name: we.exercise?.name ?? "Exercise",
-                            sets: undefined,
-                            reps: undefined,
-                            weight: undefined,
-                          })) ?? [];
-                        const res = await fetch("/api/workouts", {
-                          method: "POST",
-                          headers: {
-                            "Content-Type": "application/json",
-                          },
-                          body: JSON.stringify({
-                            date: selectedWeekDate,
-                            type: selectedSplitType,
-                            exercises,
-                            replaceForDate: true,
-                          }),
-                        });
-                        if (res.ok) {
-                          await fetch("/api/home-completions", {
+                  <div className="flex flex-col gap-2">
+                    <Button
+                      type="button"
+                      onClick={async () => {
+                        if (!selectedWeekDate || !selectedSplitType) return;
+                        if (selectedWeekDate > todayDate) return;
+                        setCompleting(true);
+                        try {
+                          const res = await fetch("/api/home-completions", {
                             method: "POST",
                             headers: {
                               "Content-Type": "application/json",
                             },
                             body: JSON.stringify({
                               date: selectedWeekDate,
+                              type: selectedSplitType,
                             }),
                           });
-                          void fetchWorkouts();
-                          setSelectedWeekDate(null);
+                          if (res.ok) {
+                            setCompletedDates((prev) =>
+                              new Set([...prev, selectedWeekDate])
+                            );
+                            setCompletionTypes((prev) => ({
+                              ...prev,
+                              [selectedWeekDate]: selectedSplitType,
+                            }));
+                            void fetchWorkouts();
+                            setSelectedWeekDate(null);
+                          }
+                        } finally {
+                          setCompleting(false);
                         }
-                      } finally {
-                        setCompleting(false);
-                      }
-                    }}
-                    disabled={completing || selectedWeekDate > todayDate}
-                    className="w-full"
-                  >
-                    {completing ? "Saving…" : "Mark as completed"}
-                  </Button>
+                      }}
+                      disabled={completing || selectedWeekDate > todayDate}
+                      className="w-full"
+                    >
+                      {completing ? "Saving…" : "Mark as completed"}
+                    </Button>
+                    {completedDates.has(selectedWeekDate) && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        disabled={completing}
+                        className="w-full"
+                        onClick={async () => {
+                          if (!selectedWeekDate) return;
+                          setCompleting(true);
+                          try {
+                            const res = await fetch(
+                              `/api/home-completions?date=${selectedWeekDate}`,
+                              { method: "DELETE" }
+                            );
+                            if (res.ok) {
+                              setCompletedDates((prev) => {
+                                const next = new Set(prev);
+                                next.delete(selectedWeekDate);
+                                return next;
+                              });
+                              setCompletionTypes((prev) => {
+                                const next = { ...prev };
+                                delete next[selectedWeekDate];
+                                return next;
+                              });
+                              void fetchWorkouts();
+                              setSelectedWeekDate(null);
+                            }
+                          } finally {
+                            setCompleting(false);
+                          }
+                        }}
+                      >
+                        Undo — remove completion
+                      </Button>
+                    )}
+                  </div>
                 </CardContent>
               </Card>
             )}
@@ -691,6 +751,8 @@ export function HomeDashboard({
               <div className="flex gap-3 overflow-x-auto pb-2">
                 {validatedUpcoming.map(({ date, weekday, type, dayIndex }) => {
                   const done = completedDates.has(date);
+                  const isSkipped =
+                    done && completionTypes[date] === "Rest Day";
                   return (
                     <Link
                       key={date}
@@ -708,8 +770,14 @@ export function HomeDashboard({
                         {type}
                       </span>
                       {done && (
-                        <span className="mt-2 text-xs text-green-600 dark:text-green-400">
-                          Done ✓
+                        <span
+                          className={`mt-2 text-xs ${
+                            isSkipped
+                              ? "text-red-600 dark:text-red-400"
+                              : "text-green-600 dark:text-green-400"
+                          }`}
+                        >
+                          {isSkipped ? "Skipped" : "Done ✓"}
                         </span>
                       )}
                     </Link>

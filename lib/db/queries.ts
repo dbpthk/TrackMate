@@ -378,13 +378,15 @@ export async function deleteWorkoutsForDate(
 }
 
 // --- Home completions (explicit "marked done" on home page, separate from logging workouts) ---
+export type HomeCompletionEntry = { date: string; type: string | null };
+
 export async function getHomeCompletions(
   userId: number,
   startDate: string,
   endDate: string
-): Promise<string[]> {
+): Promise<HomeCompletionEntry[]> {
   const rows = await db
-    .select({ date: homeCompletions.date })
+    .select({ date: homeCompletions.date, type: homeCompletions.type })
     .from(homeCompletions)
     .where(
       and(
@@ -393,19 +395,25 @@ export async function getHomeCompletions(
         lte(homeCompletions.date, endDate)
       )
     );
-  return rows.map((r) => r.date);
+  return rows.map((r) => ({
+    date: r.date,
+    type: r.type ?? null,
+  }));
 }
 
 export async function addHomeCompletion(
   userId: number,
-  date: string
+  date: string,
+  type?: string | null
 ): Promise<void> {
   const dateStr = toDate(date);
+  const typeStr = type ? trim(type, 100) : null;
   await db
     .insert(homeCompletions)
-    .values({ userId, date: dateStr })
-    .onConflictDoNothing({
+    .values({ userId, date: dateStr, type: typeStr })
+    .onConflictDoUpdate({
       target: [homeCompletions.userId, homeCompletions.date],
+      set: { type: typeStr },
     });
 }
 

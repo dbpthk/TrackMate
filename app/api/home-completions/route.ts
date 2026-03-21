@@ -37,8 +37,11 @@ export async function GET(req: NextRequest) {
     const endDate =
       end && sanitizeDate(end) ? sanitizeDate(end)! : defaultEnd;
 
-    const dates = await getHomeCompletions(userId, startDate, endDate);
-    return NextResponse.json({ dates });
+    const completions = await getHomeCompletions(userId, startDate, endDate);
+    return NextResponse.json({
+      dates: completions.map((c) => c.date),
+      completions,
+    });
   } catch (err) {
     console.error("[home-completions GET]", err);
     return jsonError(
@@ -65,7 +68,11 @@ export async function POST(req: NextRequest) {
       return jsonError("Date must be between 2010 and 2030", 400);
     }
 
-    await addHomeCompletion(userId, date);
+    const type =
+      typeof body?.type === "string" && body.type.trim()
+        ? body.type.trim().slice(0, 100)
+        : null;
+    await addHomeCompletion(userId, date, type);
     revalidateTag(`home-${userId}`, "max");
     return NextResponse.json({ success: true, ok: true });
   } catch (err) {

@@ -29,7 +29,7 @@ async function getHomeData(userId: number) {
     async () => {
       const user = await getUserById(userId);
       if (!user) return null;
-      const [workouts, completedDates, workoutSplit] = await Promise.all([
+      const [workouts, homeCompletions, workoutSplit] = await Promise.all([
         getWorkoutsWithExercisesByUserId(userId),
         (async () => {
           const { start, end } = getWeekStartEnd();
@@ -43,7 +43,17 @@ async function getHomeData(userId: number) {
           return getWorkoutSplitByUserId(userId);
         })(),
       ]);
-      return { user, workouts, completedDates, workoutSplit };
+      const completedDates = homeCompletions.map((c) => c.date);
+      const initialCompletionTypes = Object.fromEntries(
+        homeCompletions.map((c) => [c.date, c.type])
+      );
+      return {
+        user,
+        workouts,
+        completedDates,
+        initialCompletionTypes,
+        workoutSplit,
+      };
     },
     [`home-${userId}`],
     { revalidate: 60, tags: [homeCacheTag(userId)] }
@@ -83,7 +93,13 @@ export default async function HomePage() {
     );
   }
 
-  const { user, workouts, completedDates, workoutSplit } = cached;
+  const {
+    user,
+    workouts,
+    completedDates,
+    initialCompletionTypes,
+    workoutSplit,
+  } = cached;
   const { start, end } = getWeekStartEnd();
   const today = getTodayDate();
   const weekWorkouts = workouts.filter(
@@ -100,6 +116,7 @@ export default async function HomePage() {
     weekWorkouts,
     todayWorkout,
     completedDates,
+    initialCompletionTypes: initialCompletionTypes ?? {},
     initialWorkoutSplit: workoutSplit ?? null,
   };
 
