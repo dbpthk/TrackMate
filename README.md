@@ -23,16 +23,21 @@ I was having difficulty tracking my workouts at the gym and couldn't find any su
 
 ## Tech Stack
 
-| Category  | Technology                |
-| --------- | ------------------------- |
-| Framework | Next.js 16 (App Router)   |
-| Language  | TypeScript                |
-| Styling   | Tailwind CSS 4            |
-| Database  | PostgreSQL                |
-| ORM       | Drizzle ORM               |
-| Auth      | NextAuth.js (Credentials) |
-| State     | Zustand                   |
-| Charts    | Recharts                  |
+| Category        | Technology |
+| --------------- | ---------- |
+| Framework       | Next.js 16 (App Router) |
+| Language        | TypeScript |
+| Styling         | Tailwind CSS 4, tw-animate-css |
+| Database        | PostgreSQL |
+| ORM             | Drizzle ORM |
+| Auth            | NextAuth.js (Credentials); bcryptjs for passwords |
+| Data fetching   | SWR |
+| Charts          | Recharts |
+| Email           | Resend |
+| Rate limiting   | Upstash Redis (`@upstash/ratelimit`, optional via env) |
+| UI primitives   | Base UI (`@base-ui/react`) |
+| Icons           | Lucide React |
+| Utilities       | `clsx`, `tailwind-merge`, `class-variance-authority` |
 
 ## Installation & Setup
 
@@ -102,34 +107,49 @@ npm start
 
 ```
 trackmate/
-├── app/                    # Next.js App Router
-│   ├── (public)/           # Public pages (privacy, terms, about)
-│   ├── api/                # API route handlers
-│   │   ├── auth/           # NextAuth, signup
-│   │   ├── buddies/        # Follow, requests, feed
-│   │   ├── exercises/      # Exercise CRUD, suggest
-│   │   ├── share/          # Personal records sharing
-│   │   ├── users/          # User search
-│   │   ├── workout-days/   # Muscle groups per day
+├── app/                          # Next.js App Router
+│   ├── (public)/                 # Static-style pages: about, privacy, terms
+│   ├── api/                      # Route handlers (REST)
+│   │   ├── auth/                 # NextAuth, signup, demo-login, verify-code, resend-verification
+│   │   ├── buddies/            # Buddies, followers, requests, follow-back, badge, notifications
+│   │   ├── exercise-master/    # Exercise catalog
+│   │   ├── exercises/          # CRUD, suggest, [id]
+│   │   ├── home-completions/   # Home dashboard completions
+│   │   ├── profile/            # Profile API
+│   │   ├── share/personal-records/  # Shared PRs, sent, [id]
+│   │   ├── stats/streak/       # Streak stats
+│   │   ├── users/search/       # User search
+│   │   ├── verify-email/       # Email verification link handler
 │   │   ├── workout-day-exercises/
+│   │   ├── workout-days/[id]/
 │   │   ├── workout-split/
-│   │   └── workouts/       # Workout CRUD
-│   ├── auth/               # Sign in, sign up, error
-│   ├── buddies/
-│   ├── dashboard/
-│   ├── profile/
-│   ├── workout/
-│   ├── layout.tsx
-│   ├── page.tsx
-│   ├── providers.tsx
-│   └── not-found.tsx
-├── components/             # React components
-├── drizzle/                # Schema & migrations
-├── lib/                    # Auth, DB queries, utilities
-├── scripts/                # Migrate, seed scripts
-├── store/                  # Zustand store
-├── styles/                 # Global CSS
-└── utils/                  # Helpers (sanitize, etc.)
+│   │   ├── workouts/           # Workouts CRUD, [id]
+│   │   └── hello/              # Health / sample route
+│   ├── auth/                     # signin, signup, error (+ form components)
+│   ├── buddies/                # Buddies page + client
+│   ├── dashboard/              # Stats dashboard + client
+│   ├── profile/                # Profile page + client
+│   ├── sign-in/                # Alternate sign-in entry
+│   ├── workout/                # Workout logging + client
+│   ├── icon.tsx / apple-icon.tsx / opengraph-image.tsx
+│   ├── robots.ts / sitemap.ts
+│   ├── layout.tsx / page.tsx / providers.tsx
+│   ├── loading.tsx / not-found.tsx
+│   └── ...
+├── components/                   # App + feature components
+│   └── ui/                       # Shared UI (button, dialog, accordion)
+├── docs/                         # Project notes (e.g. timezone)
+├── drizzle/                      # Drizzle schema + SQL migrations
+├── lib/                          # Auth, DB, queries, email, rate limiting, helpers
+├── public/                       # Static assets
+├── scripts/                      # db:migrate:run, seed, add-exercises
+├── styles/                       # globals.css
+├── types/                        # TypeScript augments (e.g. next-auth)
+├── utils/                        # Helpers (e.g. sanitize)
+├── middleware.ts                 # Next.js middleware
+├── drizzle.config.ts
+├── next.config.ts
+└── tailwind.config.js
 ```
 
 ## Future Improvements
