@@ -19,6 +19,8 @@ import {
   getTodayDate,
   workoutsForDay,
   getTodayWorkoutForDay,
+  filterWorkoutDayExercisesByMuscleGroups,
+  filterWeightLogsByPlannedExerciseNames,
 } from "@/lib/workout-utils";
 
 const fetcher = (url: string) =>
@@ -260,7 +262,20 @@ export function WorkoutPageClient() {
             </section>
 
             <h2 className="text-lg font-semibold text-foreground">Exercises</h2>
-            {split.workoutDays.map((day) => (
+            {split.workoutDays.map((day) => {
+              const visibleForDay = filterWorkoutDayExercisesByMuscleGroups(
+                day.workoutDayExercises,
+                day.muscleGroups
+              );
+              const logsForDay = workoutsForDay(workouts, day.dayName);
+              const weightLogsForCard =
+                day.muscleGroups == null
+                  ? logsForDay
+                  : filterWeightLogsByPlannedExerciseNames(
+                      logsForDay,
+                      visibleForDay
+                    );
+              return (
               <div
                 key={day.id}
                 data-scroll-target={day.dayOrder}
@@ -269,14 +284,15 @@ export function WorkoutPageClient() {
                 <WorkoutDayCard
                   key={day.id}
                   dayName={day.dayName}
-                  exercises={day.workoutDayExercises}
-                  weightLogs={workoutsForDay(workouts, day.dayName)}
+                  exercises={visibleForDay}
+                  weightLogs={weightLogsForCard}
                   onAddExercise={() => setAddModalDay(day)}
                   onLogWorkout={() => setLogModalDay(day)}
                   onRemoveExercise={handleRemoveExercise}
                 />
               </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
@@ -321,7 +337,10 @@ export function WorkoutPageClient() {
           isOpen={!!logModalDay}
           onClose={() => setLogModalDay(null)}
           dayName={logModalDay.dayName}
-          exercises={logModalDay.workoutDayExercises.map((we) => ({
+          exercises={filterWorkoutDayExercisesByMuscleGroups(
+            logModalDay.workoutDayExercises,
+            logModalDay.muscleGroups
+          ).map((we) => ({
             id: we.exerciseId,
             name: we.exercise.name,
             muscleGroup: we.exercise.muscleGroup,
