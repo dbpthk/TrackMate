@@ -9,7 +9,13 @@ async function withSignInRateLimit(
   req: NextRequest,
   context: { params: Promise<{ nextauth: string[] }> }
 ): Promise<Response> {
-  if (req.method === "POST") {
+  const params = await context.params;
+  const segments = params?.nextauth ?? [];
+  const isCredentialsCallback =
+    segments[0] === "callback" && segments[1] === "credentials";
+  const isSignInAction = segments[0] === "signin";
+
+  if (req.method === "POST" && (isCredentialsCallback || isSignInAction)) {
     const demoSecret = process.env.DEMO_LOGIN_SECRET ?? "";
     const headerValue = req.headers.get("x-demo-login") ?? "";
     const isDemoLogin =
