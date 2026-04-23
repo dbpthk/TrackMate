@@ -24,3 +24,25 @@ export async function sendVerificationEmail(email: string, code: string) {
   });
   if (error) throw new Error(error.message);
 }
+
+export async function sendPasswordResetEmail(email: string, code: string) {
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey) throw new Error("RESEND_API_KEY is not configured");
+  const resend = new Resend(apiKey);
+  const resetUrl = `${APP_URL}/auth/reset-password?token=${encodeURIComponent(code)}`;
+  const { error } = await resend.emails.send({
+    from: FROM_EMAIL,
+    to: email,
+    subject: "Reset your TrackMate password",
+    html: `
+      <p>We received a request to reset your TrackMate password.</p>
+      <p>Your reset code is:</p>
+      <p style="font-size:28px;font-weight:700;letter-spacing:2px;margin:1rem 0;">${code}</p>
+      <p>Enter this code on the reset password page.</p>
+      <p>Or <a href="${resetUrl}" style="color:#1d4ed8;font-weight:600;">click here</a> to reset your password.</p>
+      <p>This code expires in 1 hour.</p>
+      <p>If you didn't request this, you can ignore this email.</p>
+    `,
+  });
+  if (error) throw new Error(error.message);
+}

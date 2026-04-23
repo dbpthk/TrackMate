@@ -2,7 +2,7 @@ import { getUserByEmail } from "./db/queries";
 import { users } from "@/drizzle/schema";
 import { db } from "./db";
 import bcrypt from "bcryptjs";
-import { sendVerificationEmail } from "./email";
+import { sendVerificationEmail, sendPasswordResetEmail } from "./email";
 import { isValidEmail } from "@/utils/sanitize";
 import { eq } from "drizzle-orm";
 
@@ -199,5 +199,71 @@ export async function resendVerificationEmail(
     .set({ verificationToken: verificationCode, verificationTokenExpiry })
     .where(eq(users.id, user.id));
   await sendVerificationEmail(email, verificationCode);
+  return { success: true };
+}
+
+function generateResetCode(): string {
+  const digits = Array.from(crypto.getRandomValues(new Uint8Array(6)), (b) =>
+    (b % 10).toString()
+  );
+  return digits.join("");
+}
+
+export async function requestPasswordReset(
+  email: string
+): Promise<{ success: true }> {
+  const cleanEmail = String(email ?? "").trim().toLowerCase();
+  if (!isValidEmail(cleanEmail)) return { success: true };
+  const user = await getUserByEmail(cleanEmail);
+  if (!user || !user.emailVerified) return { success: true };
+  const code = generateResetCode();
+  const verificationTokenExpiry = new Date(
+    Date.now() + TOKEN_EXPIRY_HOURS * 60 * 60 * 1000
+  );
+  await db
+    .update(users)
+    .set({ verificationToken: code, verificationTokenExpiry })
+    .where(eq(users.id, user.id));
+  await sendPasswordResetEmail(cleanEmail, code);
+  return { success: true };
+}
+
+export async function resetPasswordWithCode(
+  token: string,
+  newPassword: string
+): Promise<{ success: true } | { success: false; error: string }> {
+  const cleanToken = String(token ?? "").trim();
+  const cleanPassword = String(newPassword ?? "").trim();
+  if (!cleanToken || cleanToken.length < 6) {
+    return { success: false, error: "Invalid reset code" };
+  }
+  if (cleanPassword.length < 8) {
+    return { success: false, error: "Password must be at least 8 characters" };
+  }
+  const [user] = await db
+    .select({
+      id: users.id,
+      emailVerified: users.emailVerified,
+      verificationToken: users.verificationToken,
+      verificationTokenExpiry: users.verificationTokenExpiry,
+    })
+    .from(users)
+    .where(eq(users.verificationToken, cleanToken))
+    .limit(1);
+  if (!user || !user.emailVerified) {
+    return { success: false, error: "Invalid reset code" };
+  }
+  if (!user.verificationTokenExpiry || new Date() > user.verificationTokenExpiry) {
+    return { success: false, error: "Reset code expired" };
+  }
+  const hashed = await bcrypt.hash(cleanPassword, SALT_ROUNDS);
+  await db
+    .update(users)
+    .set({
+      password: hashed,
+      verificationToken: null,
+      verificationTokenExpiry: null,
+    })
+    .where(eq(users.id, user.id));
   return { success: true };
 }

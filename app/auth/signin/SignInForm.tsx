@@ -21,10 +21,14 @@ export function SignInForm() {
 
   useEffect(() => {
     const verified = searchParams.get("verified");
+    const reset = searchParams.get("reset");
     const err = searchParams.get("error");
     const reason = searchParams.get("reason");
     if (verified === "true") {
       setSuccess("Email verified! You can now sign in.");
+    }
+    if (reset === "success") {
+      setSuccess("Password reset successful. Please sign in.");
     }
     if (err === "Invalid token" || err === "Token expired") {
       setError("Verification link is invalid or expired. Please request a new one.");
@@ -192,6 +196,14 @@ export function SignInForm() {
               aria-describedby={error ? "signin-error" : undefined}
               className="w-full rounded border border-border bg-surface px-3 py-2 text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
             />
+            <div className="mt-2 text-right">
+              <Link
+                href="/auth/forgot-password"
+                className="text-sm font-medium text-primary underline focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
+              >
+                Forgot password?
+              </Link>
+            </div>
           </div>
           {success && !showVerifyCode && (
             <div
