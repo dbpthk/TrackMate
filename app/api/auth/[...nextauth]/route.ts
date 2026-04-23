@@ -1,7 +1,7 @@
 import type { NextRequest } from "next/server";
 import NextAuth from "next-auth";
 import { authOptions } from "@/lib/auth-options";
-import { getSignInLimiter, getIdentifier } from "@/lib/rate-limit";
+import { getSignInLimiter, getIdentifier, safeLimit } from "@/lib/rate-limit";
 
 const nextAuthHandler = NextAuth(authOptions);
 
@@ -24,7 +24,11 @@ async function withSignInRateLimit(
       headerValue === demoSecret;
     const limiter = getSignInLimiter();
     if (limiter && !isDemoLogin) {
-      const { success } = await limiter.limit(getIdentifier(req));
+      const { success } = await safeLimit(
+        limiter,
+        getIdentifier(req),
+        "signin"
+      );
       if (!success) {
         return new Response(
           JSON.stringify({

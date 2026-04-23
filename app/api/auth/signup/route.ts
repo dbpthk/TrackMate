@@ -1,11 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { signup } from "@/lib/auth";
-import { getSignUpLimiter, getIdentifier } from "@/lib/rate-limit";
+import { getSignUpLimiter, getIdentifier, safeLimit } from "@/lib/rate-limit";
 
 export async function POST(req: NextRequest) {
   const limiter = getSignUpLimiter();
   if (limiter) {
-    const { success } = await limiter.limit(getIdentifier(req));
+    const { success } = await safeLimit(
+      limiter,
+      getIdentifier(req),
+      "signup"
+    );
     if (!success) {
       return NextResponse.json(
         { success: false, error: "Too many signup attempts. Try again later." },

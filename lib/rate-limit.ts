@@ -6,6 +6,7 @@
 
 import { Ratelimit } from "@upstash/ratelimit";
 import { Redis } from "@upstash/redis";
+import { logError } from "@/lib/logger";
 
 function getRedis() {
   const url = process.env.UPSTASH_REDIS_REST_URL;
@@ -41,4 +42,23 @@ export function getIdentifier(req: Request): string {
   const forwarded = req.headers.get("x-forwarded-for");
   const realIp = req.headers.get("x-real-ip");
   return forwarded?.split(",")[0]?.trim() ?? realIp ?? "unknown";
+}
+
+/**
+ * Fail-open wrapper for limiter checks.
+ * If the limiter backend is unavailable, auth flows continue.
+ */
+export async function safeLimit(
+  limiter: Ratelimit | null,
+  identifier: string,
+  context: string
+): Promise<{ success: boolean }> {
+  if (!limiter) return { success: true };
+  try {
+    const { success } = await limiter.limit(identifier);
+    return { success };
+  } catch (err) {
+    logError(`${context}:rate-limit`, err);
+    return { success: true };
+  }
 }
